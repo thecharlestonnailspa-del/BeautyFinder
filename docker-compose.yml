@@ -1,0 +1,70 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: beauty_finder
+      POSTGRES_USER: beauty_finder
+      POSTGRES_PASSWORD: beauty_finder
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U beauty_finder -d beauty_finder']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    command: ['redis-server', '--appendonly', 'yes']
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: backend/api/Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: 3000
+      DATABASE_URL: postgresql://beauty_finder:beauty_finder@postgres:5432/beauty_finder?schema=public
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: beauty-finder-compose-local-dev-secret
+      JWT_TTL_SECONDS: 604800
+      CORS_ORIGINS: http://127.0.0.1:3001,http://127.0.0.1:3002,http://127.0.0.1:8081
+      RATE_LIMIT_MAX: 120
+      RATE_LIMIT_WINDOW_MS: 60000
+      AUTH_RATE_LIMIT_MAX: 10
+      AUTH_RATE_LIMIT_WINDOW_MS: 60000
+    ports:
+      - '3000:3000'
+    volumes:
+      - api-uploads:/app/backend/api/uploads
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'wget -qO- http://127.0.0.1:3000/api/health >/dev/null || exit 1',
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  api-uploads:
+  postgres-data:
+  redis-data:

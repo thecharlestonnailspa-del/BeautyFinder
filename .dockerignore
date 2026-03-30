@@ -1,0 +1,17 @@
+node_modules
+apps/*/node_modules
+packages/*/node_modules
+apps/mobile-app/dist
+apps/api/dist
+apps/api/uploads
+apps/owner-dashboard/.next
+apps/admin-panel/.next
+.turbo
+.env
+.env.*
+.git
+.DS_Store
+npm-debug.log
+coverage
+**/.venv
+**/__pycache__

@@ -1,0 +1,8 @@
+.next
+.expo
+.turbo
+.vercel
+dist
+build
+coverage
+package-lock.json

@@ -1,0 +1,21 @@
+{
+  "expo": {
+    "name": "Beauty Finder",
+    "slug": "beauty-finder",
+    "scheme": "beautyfinder",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "plugins": [
+      "expo-router",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Beauty Finder uses your location to show nearby salons and services."
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": false
+    }
+  }
+}

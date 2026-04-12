@@ -14,6 +14,7 @@ import {
   fetchJson,
   getApiBaseUrl,
   getApiUnavailableMessage,
+  isCustomerDemoModeEnabled,
   saveStoredSession,
 } from '../src/lib/customer-experience';
 import { HelloKittySticker } from '../src/components/hello-kitty-sticker';
@@ -31,11 +32,14 @@ export default function AuthScreen() {
   const params = useLocalSearchParams<{ mode?: string | string[] }>();
   const mode = normalizeParam(params.mode) === 'signup' ? 'signup' : 'login';
   const isSignup = mode === 'signup';
+  const demoModeEnabled = isCustomerDemoModeEnabled();
   const [fullName, setFullName] = useState('');
-  const [email, setEmail] = useState('ava@beautyfinder.app');
+  const [email, setEmail] = useState(demoModeEnabled ? 'ava@beautyfinder.app' : '');
   const [phone, setPhone] = useState('');
   const [avatarUrl, setAvatarUrl] = useState('');
-  const [password, setPassword] = useState(isSignup ? 'Beauty123' : 'mock-password');
+  const [password, setPassword] = useState(
+    isSignup ? 'Beauty123' : demoModeEnabled ? 'mock-password' : '',
+  );
   const [pending, setPending] = useState(false);
   const [statusText, setStatusText] = useState(
     isSignup
@@ -117,13 +121,17 @@ export default function AuthScreen() {
         </Text>
         <Text style={styles.title}>
           {isSignup
-            ? 'Start with the seeded customer account and keep the app flow moving.'
-            : 'Use the seeded customer session to test the real app flow.'}
+            ? demoModeEnabled
+              ? 'Start with the local seeded account and keep the app flow moving.'
+              : 'Create a real customer account and keep the app flow moving.'
+            : demoModeEnabled
+              ? 'Use the local seeded customer session to test the real app flow.'
+              : 'Sign in with your real customer account.'}
         </Text>
         <Text style={styles.body}>
-          This mobile app now uses the real auth endpoints. The seeded customer
-          login is `ava@beautyfinder.app` with password `mock-password`. New
-          sign-up passwords must include uppercase, lowercase, and a number.
+          {demoModeEnabled
+            ? 'This mobile app now uses the real auth endpoints. The local seeded customer login is `ava@beautyfinder.app` with password `mock-password`. New sign-up passwords must include uppercase, lowercase, and a number.'
+            : 'This mobile app now uses the real auth endpoints for this environment. New sign-up passwords must include uppercase, lowercase, and a number.'}
         </Text>
 
         <View style={styles.mascotPanel}>
@@ -160,7 +168,7 @@ export default function AuthScreen() {
             autoCorrect={false}
             keyboardType="email-address"
             onChangeText={setEmail}
-            placeholder="ava@beautyfinder.app"
+            placeholder={demoModeEnabled ? 'ava@beautyfinder.app' : 'you@example.com'}
             placeholderTextColor="#9a8d8a"
             style={styles.input}
             value={email}
@@ -198,7 +206,7 @@ export default function AuthScreen() {
             autoCapitalize="none"
             autoCorrect={false}
             onChangeText={setPassword}
-            placeholder={isSignup ? 'Beauty123' : 'mock-password'}
+            placeholder={isSignup ? 'Beauty123' : demoModeEnabled ? 'mock-password' : 'Password'}
             placeholderTextColor="#9a8d8a"
             secureTextEntry
             style={styles.input}

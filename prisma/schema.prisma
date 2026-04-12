@@ -64,24 +64,62 @@ enum PaymentStatus {
   REFUNDED
 }
 
+enum AdPlacement {
+  HOMEPAGE_SPOTLIGHT
+  CATEGORY_BOOST
+  CITY_BOOST
+}
+
+enum ProfessionalAccountType {
+  SALON_OWNER
+  PRIVATE_TECHNICIAN
+}
+
+enum VerificationStatus {
+  PENDING_REVIEW
+  APPROVED
+  REJECTED
+}
+
+enum PrivateTechnicianProfileStatus {
+  DRAFT
+  PUBLISHED
+  SUSPENDED
+}
+
+enum PrivateTechnicianAdStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  COMPLETED
+  CANCELLED
+}
+
 model User {
   id                        String                     @id @default(cuid())
   email                     String                     @unique
   passwordHash              String
   fullName                  String
   phone                     String?
+  avatarUrl                 String?
   status                    UserStatus                 @default(ACTIVE)
   createdAt                 DateTime                   @default(now())
   updatedAt                 DateTime                   @updatedAt
   roles                     UserRole[]
   ownedBusinesses           Business[]                 @relation("BusinessOwner")
   customerAppointments      Appointment[]              @relation("AppointmentCustomer")
+  ownerAppointments         Appointment[]              @relation("AppointmentOwner")
+  staffAssignments          Staff[]                    @relation("StaffUser")
   sentMessages              Message[]                  @relation("MessageSender")
   reviews                   Review[]
   favorites                 Favorite[]
+  businessPageViews         BusinessPageView[]         @relation("BusinessPageViewCustomer")
   notifications             Notification[]
   notificationPreference    NotificationPreference?
+  professionalRegistration  ProfessionalRegistration?
+  privateTechnicianProfile  PrivateTechnicianProfile?
   adminActions              AdminAction[]              @relation("AdminActor")
+  adPricingUpdates          AdPricing[]                @relation("AdPricingUpdater")
   appointmentHistoryChanges AppointmentStatusHistory[]
   conversationParticipants  ConversationParticipant[]
 }
@@ -115,6 +153,9 @@ model Business {
   featuredOnHomepage Boolean          @default(false)
   homepageRank       Int              @default(999)
   heroImage     String?
+  businessLogo  String?
+  businessBanner String?
+  ownerAvatarUrl String?
   videoUrl      String?
   promotionTitle String?
   promotionDescription String?
@@ -135,6 +176,8 @@ model Business {
   conversations Conversation[]
   reviews       Review[]
   favorites     Favorite[]
+  pageViews     BusinessPageView[]
+  compliance    BusinessCompliance?
 
   @@index([ownerUserId])
   @@index([category, status])
@@ -173,16 +216,21 @@ model Service {
 model Staff {
   id                String             @id @default(cuid())
   businessId        String
+  userId            String?
   name              String
   title             String?
+  avatarUrl         String?
   isActive          Boolean            @default(true)
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
   business          Business           @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  user              User?              @relation("StaffUser", fields: [userId], references: [id], onDelete: SetNull)
   availabilitySlots AvailabilitySlot[]
   appointments      Appointment[]
 
+  @@unique([businessId, userId])
   @@index([businessId, isActive])
+  @@index([userId])
 }
 
 model AvailabilitySlot {
@@ -217,6 +265,7 @@ model Appointment {
   createdAt     DateTime                   @default(now())
   updatedAt     DateTime                   @updatedAt
   customer      User                       @relation("AppointmentCustomer", fields: [customerId], references: [id], onDelete: Restrict)
+  owner         User                       @relation("AppointmentOwner", fields: [ownerId], references: [id], onDelete: Restrict)
   business      Business                   @relation(fields: [businessId], references: [id], onDelete: Restrict)
   service       Service                    @relation(fields: [serviceId], references: [id], onDelete: Restrict)
   staff         Staff?                     @relation(fields: [staffId], references: [id], onDelete: SetNull)
@@ -294,15 +343,48 @@ model Review {
   customerId    String
   rating        Int
   comment       String?
+  customerAvatarUrl String?
   status        ReviewStatus @default(PUBLISHED)
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
   appointment   Appointment? @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
   business      Business     @relation(fields: [businessId], references: [id], onDelete: Cascade)
   customer      User         @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  images        ReviewImage[]
 
   @@index([businessId, status])
   @@index([customerId])
+}
+
+model ReviewImage {
+  id        String   @id @default(cuid())
+  reviewId  String
+  url       String
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  review    Review   @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+
+  @@index([reviewId, sortOrder])
+}
+
+model BusinessPageView {
+  id                  String   @id @default(cuid())
+  businessId          String
+  customerId          String
+  selectedServiceId   String?
+  selectedServiceName String?
+  note                String?
+  dwellSeconds        Int
+  colorSignals        String?
+  source              String   @default("mobile_salon_detail")
+  createdAt           DateTime @default(now())
+  business            Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  customer            User     @relation("BusinessPageViewCustomer", fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([businessId, createdAt])
+  @@index([customerId, createdAt])
+  @@index([selectedServiceId])
+  @@map("CustomerBusinessPageView")
 }
 
 model Favorite {
@@ -365,6 +447,82 @@ model Payment {
   @@index([createdAt])
 }
 
+model AdPricing {
+  placement       AdPlacement @id
+  label           String
+  dailyPrice      Decimal
+  monthlyPrice    Decimal
+  currency        String      @default("USD")
+  note            String?
+  updatedByUserId String?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  updatedBy       User?       @relation("AdPricingUpdater", fields: [updatedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([updatedAt])
+  @@index([updatedByUserId])
+}
+
+model PrivateTechnicianProfile {
+  userId               String                         @id
+  status               PrivateTechnicianProfileStatus @default(DRAFT)
+  category             BusinessCategory               @default(NAIL)
+  displayName          String
+  headline             String?
+  bio                  String?
+  city                 String?
+  state                String?
+  postalCode           String?
+  heroImage            String?
+  featuredOnHomepage   Boolean                        @default(false)
+  homepageRank         Int                            @default(999)
+  createdAt            DateTime                       @default(now())
+  updatedAt            DateTime                       @updatedAt
+  user                 User                           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  services             PrivateTechnicianService[]
+  ads                  PrivateTechnicianAd[]
+
+  @@index([category, status])
+  @@index([status, featuredOnHomepage, homepageRank])
+  @@index([city, state])
+}
+
+model PrivateTechnicianService {
+  id              String                   @id @default(cuid())
+  profileUserId   String
+  name            String
+  description     String?
+  durationMinutes Int
+  price           Decimal
+  isActive        Boolean                  @default(true)
+  createdAt       DateTime                 @default(now())
+  updatedAt       DateTime                 @updatedAt
+  profile         PrivateTechnicianProfile @relation(fields: [profileUserId], references: [userId], onDelete: Cascade)
+
+  @@index([profileUserId, isActive])
+}
+
+model PrivateTechnicianAd {
+  id              String                   @id @default(cuid())
+  profileUserId   String
+  campaignName    String
+  placement       AdPlacement
+  headline        String
+  description     String?
+  destinationUrl  String?
+  budgetAmount    Decimal
+  currency        String                   @default("USD")
+  status          PrivateTechnicianAdStatus @default(DRAFT)
+  startsAt        DateTime?
+  endsAt          DateTime?
+  createdAt       DateTime                 @default(now())
+  updatedAt       DateTime                 @updatedAt
+  profile         PrivateTechnicianProfile @relation(fields: [profileUserId], references: [userId], onDelete: Cascade)
+
+  @@index([profileUserId, status, createdAt])
+  @@index([placement, status])
+}
+
 model AdminAction {
   id          String   @id @default(cuid())
   adminUserId String
@@ -377,4 +535,30 @@ model AdminAction {
 
   @@index([adminUserId, createdAt])
   @@index([targetType, targetId])
+}
+
+model BusinessCompliance {
+  businessId             String   @id
+  salonLicenseNumber     String
+  businessLicenseNumber  String
+  einNumber              String
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+  business               Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+}
+
+model ProfessionalRegistration {
+  userId              String                  @id
+  accountType         ProfessionalAccountType @default(PRIVATE_TECHNICIAN)
+  verificationStatus  VerificationStatus      @default(PENDING_REVIEW)
+  identityCardNumber  String
+  ssaNumber           String
+  licenseNumber       String
+  licenseState        String
+  createdAt           DateTime                @default(now())
+  updatedAt           DateTime                @updatedAt
+  user                User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([accountType, verificationStatus])
+  @@map("TechnicianCredential")
 }

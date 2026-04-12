@@ -5,6 +5,7 @@ import type {
 } from '@beauty-finder/types';
 import { MarketplaceService } from '../../common/marketplace.service';
 import { UploadOwnerBusinessImageDto } from './dto/upload-owner-business-image.dto';
+import { UpdateOwnerTechnicianRosterDto } from './dto/update-owner-technician-roster.dto';
 
 @Injectable()
 export class BusinessesService {
@@ -24,6 +25,22 @@ export class BusinessesService {
 
   getOwnerBusinesses(ownerId: string, actor: UserSummary) {
     return this.marketplace.getOwnerBusinesses(ownerId, actor);
+  }
+
+  getOwnerTechnicians(businessId: string, actor: UserSummary) {
+    return this.marketplace.getOwnerTechnicians(businessId, actor);
+  }
+
+  updateOwnerTechnicians(
+    businessId: string,
+    input: UpdateOwnerTechnicianRosterDto,
+    actor: UserSummary,
+  ) {
+    return this.marketplace.updateOwnerTechnicians(
+      businessId,
+      input.technicians,
+      actor,
+    );
   }
 
   uploadOwnerBusinessImage(

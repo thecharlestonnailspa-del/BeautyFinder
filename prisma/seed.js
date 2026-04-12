@@ -1,5 +1,23 @@
+const { loadAppEnv } = require('../scripts/load-app-env.cjs');
 const { PrismaClient } = require('@prisma/client');
 const { randomBytes, scryptSync } = require('crypto');
+
+loadAppEnv();
+
+const appEnv = (process.env.APP_ENV ?? 'local').trim().toLowerCase();
+const shouldSeedSampleData = ['1', 'true', 'yes'].includes(
+  (process.env.SEED_SAMPLE_DATA ?? '').trim().toLowerCase(),
+);
+
+if (!shouldSeedSampleData) {
+  console.log('[seed] Skipping sample data because SEED_SAMPLE_DATA is not true.');
+  process.exit(0);
+}
+
+if (appEnv === 'production') {
+  console.error('[seed] Refusing to seed sample data when APP_ENV=production.');
+  process.exit(1);
+}
 
 const prisma = new PrismaClient();
 
@@ -17,6 +35,7 @@ async function seedUsers() {
       passwordHash: hashPassword('mock-password'),
       fullName: 'Ava Tran',
       phone: '555-0101',
+      avatarUrl: 'https://images.example.com/users/ava-tran.jpg',
     },
     {
       id: 'user-owner-1',
@@ -24,6 +43,7 @@ async function seedUsers() {
       passwordHash: hashPassword('mock-password'),
       fullName: 'Lina Nguyen',
       phone: '555-0102',
+      avatarUrl: 'https://images.example.com/users/lina-nguyen.jpg',
     },
     {
       id: 'user-owner-2',
@@ -31,6 +51,7 @@ async function seedUsers() {
       passwordHash: hashPassword('mock-password'),
       fullName: 'Nora Bennett',
       phone: '555-0104',
+      avatarUrl: 'https://images.example.com/users/nora-bennett.jpg',
     },
     {
       id: 'user-owner-3',
@@ -38,6 +59,7 @@ async function seedUsers() {
       passwordHash: hashPassword('mock-password'),
       fullName: 'Mia Carter',
       phone: '555-0105',
+      avatarUrl: 'https://images.example.com/users/mia-carter.jpg',
     },
     {
       id: 'user-owner-4',
@@ -45,6 +67,7 @@ async function seedUsers() {
       passwordHash: hashPassword('mock-password'),
       fullName: 'Jade Brooks',
       phone: '555-0106',
+      avatarUrl: 'https://images.example.com/users/jade-brooks.jpg',
     },
     {
       id: 'user-owner-5',
@@ -52,6 +75,7 @@ async function seedUsers() {
       passwordHash: hashPassword('mock-password'),
       fullName: 'Selena Park',
       phone: '555-0107',
+      avatarUrl: 'https://images.example.com/users/selena-park.jpg',
     },
     {
       id: 'user-owner-6',
@@ -59,6 +83,15 @@ async function seedUsers() {
       passwordHash: hashPassword('mock-password'),
       fullName: 'Tessa Quinn',
       phone: '555-0108',
+      avatarUrl: 'https://images.example.com/users/tessa-quinn.jpg',
+    },
+    {
+      id: 'user-technician-1',
+      email: 'mila@polishedstudio.app',
+      passwordHash: hashPassword('mock-password'),
+      fullName: 'Mila Tran',
+      phone: '555-0111',
+      avatarUrl: 'https://images.example.com/users/mila-tran.jpg',
     },
     {
       id: 'user-admin-1',
@@ -66,6 +99,7 @@ async function seedUsers() {
       passwordHash: hashPassword('mock-password'),
       fullName: 'Mason Lee',
       phone: '555-0103',
+      avatarUrl: 'https://images.example.com/users/mason-lee.jpg',
     },
   ];
 
@@ -85,6 +119,7 @@ async function seedUsers() {
     { userId: 'user-owner-4', role: 'OWNER' },
     { userId: 'user-owner-5', role: 'OWNER' },
     { userId: 'user-owner-6', role: 'OWNER' },
+    { userId: 'user-technician-1', role: 'TECHNICIAN' },
     { userId: 'user-admin-1', role: 'ADMIN' },
   ];
 
@@ -100,6 +135,26 @@ async function seedUsers() {
       create: role,
     });
   }
+
+  const technicianCredentials = [
+    {
+      userId: 'user-technician-1',
+      accountType: 'PRIVATE_TECHNICIAN',
+      verificationStatus: 'APPROVED',
+      identityCardNumber: 'ID-NY-7741',
+      ssaNumber: '***-**-1188',
+      licenseNumber: 'NY-TECH-5521',
+      licenseState: 'NY',
+    },
+  ];
+
+  for (const credential of technicianCredentials) {
+    await prisma.professionalRegistration.upsert({
+      where: { userId: credential.userId },
+      update: credential,
+      create: credential,
+    });
+  }
 }
 
 async function seedNotificationPreferences() {
@@ -111,6 +166,7 @@ async function seedNotificationPreferences() {
     'user-owner-4',
     'user-owner-5',
     'user-owner-6',
+    'user-technician-1',
     'user-admin-1',
   ];
 
@@ -145,6 +201,9 @@ async function seedMarketplace() {
       featuredOnHomepage: true,
       homepageRank: 3,
       heroImage: 'https://images.example.com/polished-studio.jpg',
+      businessLogo: 'https://images.example.com/businesses/polished-studio-logo.png',
+      businessBanner: 'https://images.example.com/businesses/polished-studio-banner.jpg',
+      ownerAvatarUrl: 'https://images.example.com/users/lina-nguyen.jpg',
       videoUrl: 'https://videos.example.com/polished-studio-tour.mp4',
       promotionTitle: 'Spring gloss refresh',
       promotionDescription:
@@ -173,6 +232,9 @@ async function seedMarketplace() {
       featuredOnHomepage: false,
       homepageRank: 999,
       heroImage: 'https://images.example.com/north-strand-hair.jpg',
+      businessLogo: 'https://images.example.com/businesses/north-strand-hair-logo.png',
+      businessBanner: 'https://images.example.com/businesses/north-strand-hair-banner.jpg',
+      ownerAvatarUrl: 'https://images.example.com/users/nora-bennett.jpg',
       promotionTitle: 'Blowout weekday drop',
       promotionDescription:
         'Midweek styling promo to keep chairs filled before the weekend rush.',
@@ -201,6 +263,9 @@ async function seedMarketplace() {
       featuredOnHomepage: true,
       homepageRank: 2,
       heroImage: 'https://images.example.com/lowcountry-gloss-bar.jpg',
+      businessLogo: 'https://images.example.com/businesses/lowcountry-gloss-bar-logo.png',
+      businessBanner: 'https://images.example.com/businesses/lowcountry-gloss-bar-banner.jpg',
+      ownerAvatarUrl: 'https://images.example.com/users/mia-carter.jpg',
       videoUrl: 'https://videos.example.com/lowcountry-gloss-bar-reel.mp4',
       rating: 4.9,
       reviewCount: 62,
@@ -224,6 +289,9 @@ async function seedMarketplace() {
       featuredOnHomepage: true,
       homepageRank: 1,
       heroImage: 'https://images.example.com/ashley-river-blowout.jpg',
+      businessLogo: 'https://images.example.com/businesses/ashley-river-blowout-logo.png',
+      businessBanner: 'https://images.example.com/businesses/ashley-river-blowout-banner.jpg',
+      ownerAvatarUrl: 'https://images.example.com/users/jade-brooks.jpg',
       rating: 4.8,
       reviewCount: 47,
       status: 'APPROVED',
@@ -246,6 +314,8 @@ async function seedMarketplace() {
       featuredOnHomepage: false,
       homepageRank: 999,
       heroImage: 'https://images.example.com/luna-lash-atelier.jpg',
+      businessLogo: 'https://images.example.com/businesses/luna-lash-atelier-logo.png',
+      ownerAvatarUrl: 'https://images.example.com/users/selena-park.jpg',
       rating: 0,
       reviewCount: 0,
       status: 'PENDING_REVIEW',
@@ -268,6 +338,8 @@ async function seedMarketplace() {
       featuredOnHomepage: false,
       homepageRank: 999,
       heroImage: 'https://images.example.com/velvet-tint-studio.jpg',
+      businessLogo: 'https://images.example.com/businesses/velvet-tint-studio-logo.png',
+      ownerAvatarUrl: 'https://images.example.com/users/tessa-quinn.jpg',
       rating: 4.2,
       reviewCount: 8,
       status: 'SUSPENDED',
@@ -279,6 +351,41 @@ async function seedMarketplace() {
       where: { id: business.id },
       update: business,
       create: business,
+    });
+  }
+
+  const businessComplianceProfiles = [
+    {
+      businessId: 'biz-1',
+      salonLicenseNumber: 'SALON-NY-2044',
+      businessLicenseNumber: 'BIZ-NY-8841',
+      einNumber: '13-4128841',
+    },
+    {
+      businessId: 'biz-2',
+      salonLicenseNumber: 'SALON-NY-3180',
+      businessLicenseNumber: 'BIZ-NY-9024',
+      einNumber: '13-5129024',
+    },
+    {
+      businessId: 'biz-3',
+      salonLicenseNumber: 'SALON-SC-1408',
+      businessLicenseNumber: 'BIZ-SC-6602',
+      einNumber: '57-4466602',
+    },
+    {
+      businessId: 'biz-4',
+      salonLicenseNumber: 'SALON-SC-2091',
+      businessLicenseNumber: 'BIZ-SC-7714',
+      einNumber: '57-5177714',
+    },
+  ];
+
+  for (const compliance of businessComplianceProfiles) {
+    await prisma.businessCompliance.upsert({
+      where: { businessId: compliance.businessId },
+      update: compliance,
+      create: compliance,
     });
   }
 
@@ -402,24 +509,42 @@ async function seedMarketplace() {
       businessId: 'biz-1',
       name: 'Lina Nguyen',
       title: 'Lead Nail Artist',
+      avatarUrl: 'https://images.example.com/staff/lina-nguyen.jpg',
+    },
+    {
+      id: 'staff-1b',
+      businessId: 'biz-1',
+      name: 'Mila Tran',
+      title: 'Junior Nail Tech',
+      avatarUrl: 'https://images.example.com/staff/mila-tran.jpg',
     },
     {
       id: 'staff-2',
       businessId: 'biz-2',
       name: 'North Strand Team',
       title: 'Hair Team',
+      avatarUrl: 'https://images.example.com/staff/north-strand-team.jpg',
     },
     {
       id: 'staff-3',
       businessId: 'biz-3',
       name: 'Mia Carter',
       title: 'Nail Artist',
+      avatarUrl: 'https://images.example.com/staff/mia-carter.jpg',
+    },
+    {
+      id: 'staff-3b',
+      businessId: 'biz-3',
+      name: 'Mila Tran',
+      title: 'Guest Nail Tech',
+      avatarUrl: 'https://images.example.com/staff/mila-tran-guest.jpg',
     },
     {
       id: 'staff-4',
       businessId: 'biz-4',
       name: 'Jade Brooks',
       title: 'Style Director',
+      avatarUrl: 'https://images.example.com/staff/jade-brooks.jpg',
     },
   ];
 
@@ -428,6 +553,85 @@ async function seedMarketplace() {
       where: { id: staff.id },
       update: staff,
       create: staff,
+    });
+  }
+
+  const privateTechnicianProfiles = [
+    {
+      userId: 'user-technician-1',
+      status: 'PUBLISHED',
+      category: 'NAIL',
+      displayName: 'Mila Tran',
+      headline: 'Independent nail artist for chrome, gel, and minimalist sets.',
+      bio: 'Private technician profile with flexible pricing, direct service packages, and paid ad campaigns managed separately from salon staff rosters.',
+      city: 'New York',
+      state: 'NY',
+      postalCode: '10001',
+      heroImage: 'https://images.example.com/private-technicians/mila-tran-cover.jpg',
+      featuredOnHomepage: true,
+      homepageRank: 4,
+    },
+  ];
+
+  for (const profile of privateTechnicianProfiles) {
+    await prisma.privateTechnicianProfile.upsert({
+      where: { userId: profile.userId },
+      update: profile,
+      create: profile,
+    });
+  }
+
+  const privateTechnicianServices = [
+    {
+      id: 'pts-1',
+      profileUserId: 'user-technician-1',
+      name: 'Private Gel Manicure',
+      description: 'Independent technician booking with custom chrome finish options.',
+      durationMinutes: 60,
+      price: 72,
+      isActive: true,
+    },
+    {
+      id: 'pts-2',
+      profileUserId: 'user-technician-1',
+      name: 'Soft Gel Rebalance',
+      description: 'Maintenance appointment for returning private clients.',
+      durationMinutes: 75,
+      price: 88,
+      isActive: true,
+    },
+  ];
+
+  for (const service of privateTechnicianServices) {
+    await prisma.privateTechnicianService.upsert({
+      where: { id: service.id },
+      update: service,
+      create: service,
+    });
+  }
+
+  const privateTechnicianAds = [
+    {
+      id: 'pta-1',
+      profileUserId: 'user-technician-1',
+      campaignName: 'Chrome Spring Drop',
+      placement: 'CATEGORY_BOOST',
+      headline: 'Private chrome sets with same-week availability',
+      description: 'Independent technician ad campaign aimed at nail category discovery.',
+      destinationUrl: 'https://beautyfinder.app/technicians/mila-tran',
+      budgetAmount: 240,
+      currency: 'USD',
+      status: 'ACTIVE',
+      startsAt: new Date('2026-04-01T00:00:00.000Z'),
+      endsAt: new Date('2026-04-30T23:59:59.000Z'),
+    },
+  ];
+
+  for (const ad of privateTechnicianAds) {
+    await prisma.privateTechnicianAd.upsert({
+      where: { id: ad.id },
+      update: ad,
+      create: ad,
     });
   }
 
@@ -782,6 +986,7 @@ async function seedNotificationsAndFavorites() {
       customerId: 'user-customer-1',
       rating: 5,
       comment: 'Perfect shape and shine.',
+      customerAvatarUrl: 'https://images.example.com/customers/ava-tran.jpg',
       status: 'PUBLISHED',
     },
     {
@@ -790,6 +995,7 @@ async function seedNotificationsAndFavorites() {
       customerId: 'user-customer-1',
       rating: 4,
       comment: 'Needs moderation review.',
+      customerAvatarUrl: 'https://images.example.com/customers/ava-tran.jpg',
       status: 'FLAGGED',
     },
     {
@@ -798,6 +1004,7 @@ async function seedNotificationsAndFavorites() {
       customerId: 'user-customer-1',
       rating: 3,
       comment: 'Possible duplicate review.',
+      customerAvatarUrl: 'https://images.example.com/customers/ava-tran.jpg',
       status: 'FLAGGED',
     },
     {
@@ -806,6 +1013,7 @@ async function seedNotificationsAndFavorites() {
       customerId: 'user-customer-1',
       rating: 2,
       comment: 'Escalated for policy check.',
+      customerAvatarUrl: 'https://images.example.com/customers/ava-tran.jpg',
       status: 'FLAGGED',
     },
   ];
@@ -815,6 +1023,76 @@ async function seedNotificationsAndFavorites() {
       where: { id: review.id },
       update: review,
       create: review,
+    });
+  }
+
+  const reviewImages = [
+    {
+      id: 'review-image-1',
+      reviewId: 'review-1',
+      url: 'https://images.example.com/reviews/review-1-photo-1.jpg',
+      sortOrder: 0,
+    },
+    {
+      id: 'review-image-2',
+      reviewId: 'review-1',
+      url: 'https://images.example.com/reviews/review-1-photo-2.jpg',
+      sortOrder: 1,
+    },
+  ];
+
+  for (const reviewImage of reviewImages) {
+    await prisma.reviewImage.upsert({
+      where: { id: reviewImage.id },
+      update: reviewImage,
+      create: reviewImage,
+    });
+  }
+
+  const businessPageViews = [
+    {
+      id: 'page-view-1',
+      businessId: 'biz-1',
+      customerId: 'user-customer-1',
+      selectedServiceId: 'svc-1',
+      selectedServiceName: 'Gel Manicure',
+      note: 'Checking evening availability before booking.',
+      dwellSeconds: 142,
+      colorSignals: '["pink","pearl"]',
+      source: 'mobile_salon_detail',
+      createdAt: new Date('2026-03-20T12:10:00.000Z'),
+    },
+    {
+      id: 'page-view-2',
+      businessId: 'biz-1',
+      customerId: 'user-customer-1',
+      selectedServiceId: 'svc-2',
+      selectedServiceName: 'Nail Art Add-on',
+      note: 'Comparing art options.',
+      dwellSeconds: 88,
+      colorSignals: '["chrome"]',
+      source: 'mobile_salon_detail',
+      createdAt: new Date('2026-03-21T16:42:00.000Z'),
+    },
+    {
+      id: 'page-view-3',
+      businessId: 'biz-2',
+      customerId: 'user-customer-1',
+      selectedServiceId: 'svc-4',
+      selectedServiceName: 'Haircut + Blowout',
+      note: 'Saved for later weekend plan.',
+      dwellSeconds: 51,
+      colorSignals: '["caramel"]',
+      source: 'web_search',
+      createdAt: new Date('2026-03-22T11:15:00.000Z'),
+    },
+  ];
+
+  for (const pageView of businessPageViews) {
+    await prisma.businessPageView.upsert({
+      where: { id: pageView.id },
+      update: pageView,
+      create: pageView,
     });
   }
 }
@@ -863,6 +1141,46 @@ async function seedAdminActions() {
   }
 }
 
+async function seedAdPricing() {
+  const pricingEntries = [
+    {
+      placement: 'HOMEPAGE_SPOTLIGHT',
+      label: 'Homepage Spotlight',
+      dailyPrice: 79,
+      monthlyPrice: 1990,
+      currency: 'USD',
+      note: 'Prime homepage inventory for the highest-visibility salons.',
+      updatedByUserId: 'user-admin-1',
+    },
+    {
+      placement: 'CATEGORY_BOOST',
+      label: 'Category Boost',
+      dailyPrice: 45,
+      monthlyPrice: 1190,
+      currency: 'USD',
+      note: 'Raises salon visibility inside category browsing results.',
+      updatedByUserId: 'user-admin-1',
+    },
+    {
+      placement: 'CITY_BOOST',
+      label: 'City Boost',
+      dailyPrice: 52,
+      monthlyPrice: 1390,
+      currency: 'USD',
+      note: 'Adds extra local discovery weight inside a selected city.',
+      updatedByUserId: 'user-admin-1',
+    },
+  ];
+
+  for (const entry of pricingEntries) {
+    await prisma.adPricing.upsert({
+      where: { placement: entry.placement },
+      update: entry,
+      create: entry,
+    });
+  }
+}
+
 async function main() {
   await seedUsers();
   await seedNotificationPreferences();
@@ -870,6 +1188,7 @@ async function main() {
   await seedBookingsAndMessages();
   await seedNotificationsAndFavorites();
   await seedAdminActions();
+  await seedAdPricing();
   console.log('Seeded Beauty Finder database');
 }
 

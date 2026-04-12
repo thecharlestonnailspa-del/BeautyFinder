@@ -439,6 +439,34 @@ function isLocalHostname(hostname: string) {
   );
 }
 
+export function isCustomerDemoModeEnabled() {
+  const configuredValue = process.env.EXPO_PUBLIC_ENABLE_DEMO_MODE?.trim().toLowerCase();
+
+  if (configuredValue === 'true') {
+    return true;
+  }
+
+  if (configuredValue === 'false') {
+    return false;
+  }
+
+  if (process.env.NODE_ENV === 'production') {
+    return false;
+  }
+
+  const configuredApiUrl = process.env.EXPO_PUBLIC_API_URL?.trim();
+
+  if (!configuredApiUrl) {
+    return true;
+  }
+
+  try {
+    return isLocalHostname(new URL(configuredApiUrl).hostname);
+  } catch {
+    return false;
+  }
+}
+
 export function getApiBaseUrl() {
   const configuredApiUrl = process.env.EXPO_PUBLIC_API_URL?.trim();
 
@@ -457,7 +485,9 @@ export function getApiBaseUrl() {
 }
 
 export function getApiUnavailableMessage() {
-  return 'Live API is not configured for this deployment yet. Browse the showcase for now.';
+  return isCustomerDemoModeEnabled()
+    ? 'Live API is not configured for this deployment yet. Browse the showcase for now.'
+    : 'Live API is unavailable for this environment right now.';
 }
 
 export function getAuthHeaders(contentType = false): HeadersInit {

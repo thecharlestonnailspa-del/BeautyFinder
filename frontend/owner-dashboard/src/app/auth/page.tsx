@@ -6,20 +6,15 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import type { CSSProperties } from 'react';
 import type {
   RegisterBusinessOwnerInput,
-  RegisterPrivateTechnicianInput,
   SessionPayload,
 } from '@beauty-finder/types';
 import {
-  createPreviewOwnerSession,
-  getApiBaseUrl,
+  isOwnerPreviewEnabled,
   previewOwnerCredentials,
-  saveOwnerSessionCookie,
 } from '../../lib/owner-api';
 
-type RegisterTrack = 'business' | 'technician';
-
 async function postJson<T>(path: string, body: unknown) {
-  const response = await fetch(`${getApiBaseUrl()}${path}`, {
+  const response = await fetch(`/api${path}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
@@ -32,13 +27,11 @@ async function postJson<T>(path: string, body: unknown) {
   return (await response.json()) as T;
 }
 
-function getDefaultStatusText(isRegister: boolean, registerTrack: RegisterTrack) {
+function getDefaultStatusText(isRegister: boolean, previewEnabled: boolean) {
   if (!isRegister) {
-    return 'Sign in with a salon owner account, or test the seeded owner preview if the API is offline.';
-  }
-
-  if (registerTrack === 'technician') {
-    return 'Create a private technician account with identity card, SSA number, and the state license information kept in its own compliance profile.';
+    return previewEnabled
+      ? 'Sign in with a salon owner account, or use the local preview owner flow while the API is offline.'
+      : 'Sign in with a salon owner account through the live API for this environment.';
   }
 
   return 'Create a salon owner account with salon license, business license, EIN, and the full business profile saved into Postgres.';
@@ -48,12 +41,16 @@ function ProfessionalAuthScreen() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const mode = searchParams?.get('mode') === 'register' ? 'register' : 'login';
-  const registerTrack = searchParams?.get('type') === 'technician' ? 'technician' : 'business';
   const isRegister = mode === 'register';
+  const previewEnabled = isOwnerPreviewEnabled();
 
   const [ownerName, setOwnerName] = useState('');
-  const [ownerEmail, setOwnerEmail] = useState(isRegister ? '' : 'lina@polishedstudio.app');
-  const [password, setPassword] = useState(isRegister ? 'Beauty123' : 'mock-password');
+  const [ownerEmail, setOwnerEmail] = useState(
+    isRegister ? '' : previewEnabled ? previewOwnerCredentials.email : '',
+  );
+  const [password, setPassword] = useState(
+    isRegister ? 'Beauty123' : previewEnabled ? previewOwnerCredentials.password : '',
+  );
   const [ownerPhone, setOwnerPhone] = useState('');
   const [businessName, setBusinessName] = useState('');
   const [category, setCategory] = useState<'nail' | 'hair'>('nail');
@@ -69,39 +66,24 @@ function ProfessionalAuthScreen() {
   const [businessLicenseNumber, setBusinessLicenseNumber] = useState('');
   const [einNumber, setEinNumber] = useState('');
 
-  const [technicianName, setTechnicianName] = useState('');
-  const [technicianEmail, setTechnicianEmail] = useState('');
-  const [technicianPhone, setTechnicianPhone] = useState('');
-  const [identityCardNumber, setIdentityCardNumber] = useState('');
-  const [ssaNumber, setSsaNumber] = useState('');
-  const [licenseNumber, setLicenseNumber] = useState('');
-  const [licenseState, setLicenseState] = useState('');
-
   const [statusText, setStatusText] = useState(
-    getDefaultStatusText(isRegister, registerTrack),
+    getDefaultStatusText(isRegister, previewEnabled),
   );
   const [pending, setPending] = useState(false);
 
   useEffect(() => {
     if (!pending) {
-      setStatusText(getDefaultStatusText(isRegister, registerTrack));
+      setStatusText(getDefaultStatusText(isRegister, previewEnabled));
     }
-  }, [isRegister, pending, registerTrack]);
+  }, [isRegister, pending, previewEnabled]);
 
   const pageTitle = useMemo(() => {
     if (!isRegister) {
       return 'Sign in to the salon owner workspace.';
     }
 
-    return registerTrack === 'technician'
-      ? 'Register a private technician account.'
-      : 'Register a salon owner business account.';
-  }, [isRegister, registerTrack]);
-
-  const canUsePreviewLogin =
-    !isRegister &&
-    ownerEmail.trim().toLowerCase() === previewOwnerCredentials.email &&
-    password === previewOwnerCredentials.password;
+    return 'Register a salon owner business account.';
+  }, [isRegister]);
 
   async function handleSubmit() {
     if (pending) {
@@ -109,36 +91,20 @@ function ProfessionalAuthScreen() {
     }
 
     setPending(true);
-    setStatusText(
-      !isRegister
-        ? 'Signing you in...'
-        : registerTrack === 'technician'
-          ? 'Creating private technician account...'
-          : 'Creating salon owner account...',
-    );
+    setStatusText(!isRegister ? 'Signing you in...' : 'Creating salon owner account...');
 
     let path = '/auth/login';
-    let payload: RegisterBusinessOwnerInput | RegisterPrivateTechnicianInput | {
-      email: string;
-      password: string;
-    };
+    let payload:
+      | RegisterBusinessOwnerInput
+      | {
+          email: string;
+          password: string;
+        };
 
     if (!isRegister) {
       payload = {
         email: ownerEmail.trim(),
         password,
-      };
-    } else if (registerTrack === 'technician') {
-      path = '/auth/register/technician';
-      payload = {
-        fullName: technicianName.trim(),
-        email: technicianEmail.trim(),
-        password,
-        phone: technicianPhone.trim() || undefined,
-        identityCardNumber: identityCardNumber.trim(),
-        ssaNumber: ssaNumber.trim(),
-        licenseNumber: licenseNumber.trim(),
-        licenseState: licenseState.trim(),
       };
     } else {
       path = '/auth/register/business';
@@ -167,45 +133,22 @@ function ProfessionalAuthScreen() {
       const session = await postJson<SessionPayload>(path, payload);
 
       if (!session) {
-        if (canUsePreviewLogin) {
-          saveOwnerSessionCookie(createPreviewOwnerSession());
-          router.replace('/');
-          return;
-        }
-
         setStatusText(
           !isRegister
             ? 'Sign in failed. Check your email and password.'
-            : registerTrack === 'technician'
-              ? 'Private technician registration failed. Check identity and license fields.'
-              : 'Salon owner registration failed. Check business profile and license fields.',
+            : 'Salon owner registration failed. Check business profile and license fields.',
         );
         return;
       }
 
       if (session.user.role === 'owner') {
-        saveOwnerSessionCookie(session);
         router.replace('/');
         return;
       }
 
-      if (session.user.role === 'technician') {
-        setPassword('');
-        setStatusText(
-          'Private technician account created in the real database. Technician access stays separate from the salon owner dashboard, so this screen does not sign that account into owner tools.',
-        );
-        return;
-      }
-
-      setStatusText('That account is not mapped to salon owner or private technician access.');
+      setStatusText('That account is not mapped to salon owner access.');
     } catch {
-      if (canUsePreviewLogin) {
-        saveOwnerSessionCookie(createPreviewOwnerSession());
-        router.replace('/');
-        return;
-      }
-
-      setStatusText('Could not reach the professional auth API right now.');
+      setStatusText('Could not reach the salon owner auth API right now.');
     } finally {
       setPending(false);
     }
@@ -243,7 +186,7 @@ function ProfessionalAuthScreen() {
               textTransform: 'uppercase',
             }}
           >
-            Professional Auth
+            Salon Owner Auth
           </p>
           <h1
             style={{
@@ -256,8 +199,9 @@ function ProfessionalAuthScreen() {
             {pageTitle}
           </h1>
           <p style={{ margin: 0, color: '#6d5060', lineHeight: 1.7 }}>
-            Salon owners and private technicians are now registered separately. Seeded owner
-            sign in still works with `lina@polishedstudio.app` and password `mock-password`.
+            {previewEnabled
+              ? 'This workspace is only for salon owners. Local preview sign in still works with `lina@polishedstudio.app` and password `mock-password` while you are developing.'
+              : 'This workspace is only for salon owners. This environment only accepts live API-backed sign-in.'}
           </p>
         </div>
 
@@ -274,32 +218,15 @@ function ProfessionalAuthScreen() {
             Sign In
           </a>
           <a
-            href="/auth?mode=register&type=business"
+            href="/auth?mode=register"
             style={{
               ...pillStyle,
-              color: isRegister && registerTrack === 'business' ? '#ffffff' : '#805f72',
-              background: isRegister && registerTrack === 'business' ? '#ff5f98' : '#fff',
-              border:
-                isRegister && registerTrack === 'business'
-                  ? '1px solid transparent'
-                  : '1px solid #f0cad8',
+              color: isRegister ? '#ffffff' : '#805f72',
+              background: isRegister ? '#ff5f98' : '#fff',
+              border: isRegister ? '1px solid transparent' : '1px solid #f0cad8',
             }}
           >
             Register Salon Owner
-          </a>
-          <a
-            href="/auth?mode=register&type=technician"
-            style={{
-              ...pillStyle,
-              color: isRegister && registerTrack === 'technician' ? '#ffffff' : '#805f72',
-              background: isRegister && registerTrack === 'technician' ? '#ff5f98' : '#fff',
-              border:
-                isRegister && registerTrack === 'technician'
-                  ? '1px solid transparent'
-                  : '1px solid #f0cad8',
-            }}
-          >
-            Register Private Technician
           </a>
         </div>
 
@@ -313,9 +240,8 @@ function ProfessionalAuthScreen() {
             fontWeight: 600,
           }}
         >
-          {isRegister && registerTrack === 'technician'
-            ? 'Private technicians stay separate from salon owner businesses. Identity, SSA, and state license data are stored in a dedicated compliance profile.'
-            : 'Salon owner registration now keeps salon license, business license, and EIN separate from the editable business profile.'}
+          Salon owner registration keeps salon license, business license, and EIN separate from the
+          editable salon profile.
         </div>
 
         <div
@@ -348,7 +274,7 @@ function ProfessionalAuthScreen() {
             </>
           ) : null}
 
-          {isRegister && registerTrack === 'business' ? (
+          {isRegister ? (
             <>
               <label style={fieldStyle}>
                 <span>Owner name</span>
@@ -508,83 +434,6 @@ function ProfessionalAuthScreen() {
               </label>
             </>
           ) : null}
-
-          {isRegister && registerTrack === 'technician' ? (
-            <>
-              <label style={fieldStyle}>
-                <span>Technician full name</span>
-                <input
-                  value={technicianName}
-                  onChange={(event) => setTechnicianName(event.target.value)}
-                  style={inputStyle}
-                />
-              </label>
-
-              <label style={fieldStyle}>
-                <span>Email</span>
-                <input
-                  value={technicianEmail}
-                  onChange={(event) => setTechnicianEmail(event.target.value)}
-                  style={inputStyle}
-                />
-              </label>
-
-              <label style={fieldStyle}>
-                <span>Password</span>
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                  style={inputStyle}
-                />
-              </label>
-
-              <label style={fieldStyle}>
-                <span>Phone</span>
-                <input
-                  value={technicianPhone}
-                  onChange={(event) => setTechnicianPhone(event.target.value)}
-                  style={inputStyle}
-                />
-              </label>
-
-              <label style={fieldStyle}>
-                <span>Identity card number</span>
-                <input
-                  value={identityCardNumber}
-                  onChange={(event) => setIdentityCardNumber(event.target.value)}
-                  style={inputStyle}
-                />
-              </label>
-
-              <label style={fieldStyle}>
-                <span>SSA number</span>
-                <input
-                  value={ssaNumber}
-                  onChange={(event) => setSsaNumber(event.target.value)}
-                  style={inputStyle}
-                />
-              </label>
-
-              <label style={fieldStyle}>
-                <span>License number</span>
-                <input
-                  value={licenseNumber}
-                  onChange={(event) => setLicenseNumber(event.target.value)}
-                  style={inputStyle}
-                />
-              </label>
-
-              <label style={fieldStyle}>
-                <span>State of registration</span>
-                <input
-                  value={licenseState}
-                  onChange={(event) => setLicenseState(event.target.value)}
-                  style={inputStyle}
-                />
-              </label>
-            </>
-          ) : null}
         </div>
 
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
@@ -609,9 +458,7 @@ function ProfessionalAuthScreen() {
               ? 'Working...'
               : !isRegister
                 ? 'Sign in to owner workspace'
-                : registerTrack === 'technician'
-                  ? 'Create technician account'
-                  : 'Create salon owner account'}
+                : 'Create salon owner account'}
           </button>
 
           <Link

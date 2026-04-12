@@ -1,4 +1,9 @@
-import type { Role, SessionPayload, UserSummary } from '@beauty-finder/types';
+import type {
+  ProfessionalAccountType,
+  Role,
+  SessionPayload,
+  UserSummary,
+} from '@beauty-finder/types';
 import { RoleName } from '@prisma/client';
 import {
   createHash,
@@ -26,9 +31,43 @@ type AccessTokenHeader = {
 const permissionMap: Record<Role, string[]> = {
   customer: ['browse:businesses', 'book:appointments', 'chat:businesses'],
   owner: ['manage:business', 'manage:bookings', 'chat:customers'],
-  technician: ['manage:schedule', 'view:assigned-bookings'],
+  technician: ['manage:profile', 'manage:services', 'manage:ads'],
   admin: ['manage:users', 'manage:businesses', 'view:platform'],
 };
+
+function getRolePriority(role: Role) {
+  switch (role) {
+    case 'admin':
+      return 0;
+    case 'owner':
+      return 1;
+    case 'technician':
+      return 2;
+    case 'customer':
+    default:
+      return 3;
+  }
+}
+
+function getPrimaryRole(roles: { role: RoleName }[]): Role {
+  return (
+    roles
+      .map((entry) => fromRoleName(entry.role))
+      .sort((left, right) => getRolePriority(left) - getRolePriority(right))[0] ??
+    'customer'
+  );
+}
+
+function getAccountType(role: Role): ProfessionalAccountType | undefined {
+  switch (role) {
+    case 'owner':
+      return 'salon_owner';
+    case 'technician':
+      return 'private_technician';
+    default:
+      return undefined;
+  }
+}
 
 export function toBase64Url(input: string | Buffer) {
   return Buffer.from(input)
@@ -62,13 +101,15 @@ export function fromRoleName(role: RoleName): Role {
 }
 
 export function toUserSummary(user: UserWithRoles): UserSummary {
-  const role = user.roles[0]?.role ? fromRoleName(user.roles[0].role) : 'customer';
+  const role = getPrimaryRole(user.roles);
 
   return {
     id: user.id,
     role,
     name: user.fullName,
     email: user.email,
+    accountType: getAccountType(role),
+    avatarUrl: user.avatarUrl ?? undefined,
   };
 }
 

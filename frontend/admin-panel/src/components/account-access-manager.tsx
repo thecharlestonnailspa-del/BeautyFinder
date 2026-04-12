@@ -8,13 +8,10 @@ import type {
   SessionPayload,
 } from '@beauty-finder/types';
 import {
-  clearAdminAccountAccessSessionCookie,
+  clearAdminAccountAccessSession,
   fetchAdminJson,
   getAdminHeaders,
   getApiBaseUrl,
-  getStoredAdminAccountAccessToken,
-  getStoredAdminToken,
-  saveAdminAccountAccessSessionCookie,
 } from '../lib/admin-api';
 import { PublicIdChip } from './public-id-chip';
 
@@ -73,12 +70,6 @@ export function AccountAccessManager() {
   }, []);
 
   async function refreshAccounts() {
-    const adminToken = getStoredAdminToken();
-    if (!adminToken) {
-      setStatusMessage('Admin token is missing in this browser, so account access cannot be loaded here.');
-      return;
-    }
-
     setIsLoadingAccounts(true);
     setStatusMessage('Loading accounts...');
     try {
@@ -90,7 +81,7 @@ export function AccountAccessManager() {
         params.set('role', roleFilter);
       }
       const path = `/admin/accounts${params.size ? `?${params.toString()}` : ''}`;
-      const nextAccounts = await fetchAdminJson<AdminAccountSummary[]>(path, adminToken);
+      const nextAccounts = await fetchAdminJson<AdminAccountSummary[]>(path);
       if (!nextAccounts) {
         setStatusMessage('Could not load accounts from the admin API.');
         return;
@@ -103,30 +94,19 @@ export function AccountAccessManager() {
   }
 
   async function hydrateActiveAccess() {
-    const accessToken = getStoredAdminAccountAccessToken();
-    if (!accessToken) {
-      return;
-    }
-
-    const session = await fetchAdminJson<SessionPayload>('/auth/session', accessToken);
+    const session = await fetchAdminJson<SessionPayload>('/auth/session', undefined, 'access');
     if (!session) {
-      clearAdminAccountAccessSessionCookie();
-      setStatusMessage('Stored account access session expired, so it was cleared.');
+      await clearAdminAccountAccessSession();
       return;
     }
 
     setActiveSession(session);
     setStatusMessage(`Account access restored for ${session.user.name}.`);
-    await loadActiveAccount(session.user.id, accessToken, session.user.role);
+    await loadActiveAccount(session.user.id, session.user.role);
   }
 
-  async function loadActiveAccount(userId: string, accessToken?: string | null, role?: string) {
-    const adminToken = getStoredAdminToken();
-    if (!adminToken) {
-      return;
-    }
-
-    const account = await fetchAdminJson<AdminAccountSummary>(`/admin/accounts/${userId}`, adminToken);
+  async function loadActiveAccount(userId: string, role?: string) {
+    const account = await fetchAdminJson<AdminAccountSummary>(`/admin/accounts/${userId}`);
     if (account) {
       setActiveAccount(account);
       setAccountDraft({
@@ -138,10 +118,11 @@ export function AccountAccessManager() {
     }
 
     const targetRole = role ?? account?.primaryRole;
-    if (targetRole === 'owner' && accessToken) {
+    if (targetRole === 'owner') {
       const businesses = await fetchAdminJson<OwnerBusinessProfile[]>(
         '/businesses/owner/manage',
-        accessToken,
+        undefined,
+        'access',
       );
       if (businesses) {
         setOwnerBusinesses(businesses);
@@ -161,10 +142,11 @@ export function AccountAccessManager() {
     setStatusMessage(`Creating access session for ${account.name}...`);
 
     try {
-      const response = await fetch(`${getApiBaseUrl()}/admin/accounts/${account.id}/access-session`, {
+      const response = await fetch('/api/auth/access-session', {
         method: 'POST',
-        headers: getAdminHeaders(true),
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          accountId: account.id,
           note: accessNote.trim() || undefined,
         }),
       });
@@ -175,9 +157,8 @@ export function AccountAccessManager() {
       }
 
       const session = (await response.json()) as SessionPayload;
-      saveAdminAccountAccessSessionCookie(session);
       setActiveSession(session);
-      await loadActiveAccount(account.id, session.accessToken, session.user.role);
+      await loadActiveAccount(account.id, session.user.role);
       setStatusMessage(`Admin access session is live for ${session.user.name}.`);
     } catch {
       setStatusMessage(`Network error while starting account access for ${account.name}.`);
@@ -187,7 +168,7 @@ export function AccountAccessManager() {
   }
 
   function endAccess() {
-    clearAdminAccountAccessSessionCookie();
+    void clearAdminAccountAccessSession();
     setActiveSession(null);
     setActiveAccount(null);
     setOwnerBusinesses([]);
@@ -237,10 +218,9 @@ export function AccountAccessManager() {
   }
 
   async function saveBusiness(businessId: string) {
-    const accessToken = getStoredAdminAccountAccessToken();
     const draft = businessDrafts[businessId];
-    if (!accessToken || !draft) {
-      setStatusMessage('No active access token is available for owner business editing.');
+    if (!draft) {
+      setStatusMessage('No active access session is available for owner business editing.');
       return;
     }
 
@@ -262,7 +242,7 @@ export function AccountAccessManager() {
     try {
       const response = await fetch(`${getApiBaseUrl()}/businesses/${businessId}/owner-profile`, {
         method: 'PATCH',
-        headers: getAdminHeaders(true, accessToken),
+        headers: getAdminHeaders(true, undefined, 'access'),
         body: JSON.stringify({
           name: draft.name.trim(),
           description: draft.description.trim(),

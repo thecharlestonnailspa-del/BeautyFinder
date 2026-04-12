@@ -19,6 +19,7 @@ import {
   fallbackNotifications,
   fetchJson,
   getAuthHeaders,
+  isCustomerDemoModeEnabled,
   getStoredSession,
 } from '../src/lib/customer-experience';
 
@@ -89,6 +90,7 @@ function getNotificationTypeLabel(type: NotificationRecord['type']) {
 
 export default function NotificationsScreen() {
   const { refresh } = useLocalSearchParams<{ refresh?: string }>();
+  const demoModeEnabled = isCustomerDemoModeEnabled();
   const [session, setSession] = useState<SessionPayload | null>(() =>
     getStoredSession(),
   );
@@ -329,8 +331,9 @@ export default function NotificationsScreen() {
         <View style={styles.emptyCard}>
           <Text style={styles.emptyTitle}>Customer login required</Text>
           <Text style={styles.emptyBody}>
-            Sign in with the seeded customer account to manage real notification
-            settings and see your live inbox.
+            {demoModeEnabled
+              ? 'Sign in with the local seeded customer account to manage real notification settings and see your live inbox.'
+              : 'Sign in with your customer account to manage notification settings and see your live inbox.'}
           </Text>
           <Link href="/auth?mode=login" asChild>
             <Pressable

@@ -4,16 +4,20 @@ import {
   Get,
   Param,
   Patch,
+  Post,
   Query,
   Req,
   UseGuards,
 } from '@nestjs/common';
 import type { Request } from 'express';
-import type { SessionPayload } from '@beauty-finder/types';
+import type { Role, SessionPayload } from '@beauty-finder/types';
 import { JwtAuthGuard } from '../../common/auth.guard';
 import { Roles } from '../../common/roles.decorator';
 import { RolesGuard } from '../../common/roles.guard';
 import { AdminService } from './admin.service';
+import { CreateAdminAccessSessionDto } from './dto/create-admin-access-session.dto';
+import { UpdateAdPricingDto } from './dto/update-ad-pricing.dto';
+import { UpdateAdminAccountDto } from './dto/update-admin-account.dto';
 import { UpdateBusinessStatusDto } from './dto/update-business-status.dto';
 import { UpdateConversationCaseStatusDto } from './dto/update-conversation-case-status.dto';
 import { UpdateHomepageBusinessDto } from './dto/update-homepage-business.dto';
@@ -32,11 +36,87 @@ export class AdminController {
     return this.adminService.getOverview();
   }
 
+  @Get('customer-insights/report')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
+  getCustomerPreferenceReport() {
+    return this.adminService.getCustomerPreferenceReport();
+  }
+
+  @Get('ad-pricing')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
+  getAdPricing() {
+    return this.adminService.getAdPricing();
+  }
+
+  @Patch('ad-pricing/:placement')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
+  updateAdPricing(
+    @Param('placement') placement: 'homepage_spotlight' | 'category_boost' | 'city_boost',
+    @Body() input: UpdateAdPricingDto,
+    @Req() request: SessionRequest,
+  ) {
+    return this.adminService.updateAdPricing(
+      placement,
+      input,
+      request.session!.user.id,
+    );
+  }
+
   @Get('homepage-businesses')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('admin')
   getHomepageBusinesses() {
     return this.adminService.getHomepageBusinesses();
+  }
+
+  @Get('accounts')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
+  getAccounts(
+    @Query('search') search?: string,
+    @Query('role') role?: Role,
+  ) {
+    return this.adminService.getAccounts(search, role);
+  }
+
+  @Get('accounts/:accountId')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
+  getAccount(@Param('accountId') accountId: string) {
+    return this.adminService.getAccount(accountId);
+  }
+
+  @Patch('accounts/:accountId')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
+  updateAccount(
+    @Param('accountId') accountId: string,
+    @Body() input: UpdateAdminAccountDto,
+    @Req() request: SessionRequest,
+  ) {
+    return this.adminService.updateAccount(
+      accountId,
+      input,
+      request.session!.user.id,
+    );
+  }
+
+  @Post('accounts/:accountId/access-session')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
+  createAccessSession(
+    @Param('accountId') accountId: string,
+    @Body() input: CreateAdminAccessSessionDto,
+    @Req() request: SessionRequest,
+  ) {
+    return this.adminService.createAccessSession(
+      accountId,
+      input,
+      request.session!.user.id,
+    );
   }
 
   @Get('businesses')

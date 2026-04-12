@@ -2,8 +2,6 @@ import { Link, Stack, useLocalSearchParams } from 'expo-router';
 import * as Location from 'expo-location';
 import { useEffect, useMemo, useState } from 'react';
 import {
-  Image,
-  ImageBackground,
   Platform,
   Pressable,
   ScrollView,
@@ -30,13 +28,15 @@ import {
   formatDistanceKm,
   getAuthHeaders,
   getBusinessDistanceKm,
-  getBusinessHeroImage,
   getStoredSession,
   sortBusinessesForHomepage,
   type UserCoordinates,
 } from '../src/lib/customer-experience';
 import { BeautyMotion } from '../src/components/beauty-motion';
-import { HelloKittySticker } from '../src/components/hello-kitty-sticker';
+import {
+  BeautyFinderWordmark,
+  BusinessLogoPanel,
+} from '../src/components/business-logo-panel';
 
 type CategoryShortcut =
   | 'all'
@@ -57,57 +57,6 @@ const heroMenu = [
   { id: 'brooklyn' as const, label: 'Brooklyn' },
 ];
 const topNavItems = ['Nail', 'Hair', 'Nearby', 'Deals', 'Top Rated'];
-const brandLogoSvg = `
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 240">
-  <defs>
-    <linearGradient id="bfLetter" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#ff8fbd" />
-      <stop offset="45%" stop-color="#f6badf" />
-      <stop offset="100%" stop-color="#9e73d7" />
-    </linearGradient>
-    <linearGradient id="bfScript" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color="#f49cc4" />
-      <stop offset="100%" stop-color="#c587de" />
-    </linearGradient>
-    <linearGradient id="bfGold" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#f7d288" />
-      <stop offset="100%" stop-color="#d58d38" />
-    </linearGradient>
-    <filter id="bfGlow" x="-20%" y="-20%" width="140%" height="140%">
-      <feGaussianBlur stdDeviation="3" result="blur"/>
-      <feMerge>
-        <feMergeNode in="blur"/>
-        <feMergeNode in="SourceGraphic"/>
-      </feMerge>
-    </filter>
-  </defs>
-  <g filter="url(#bfGlow)">
-    <text x="24" y="132" font-size="126" font-weight="700" font-family="Georgia, Times New Roman, serif" fill="url(#bfLetter)">BF</text>
-    <path d="M247 111c16-37 64-48 96-28 22 14 24 46 3 61-18 12-46 9-61-8-16-17-16-43 1-57 16-15 44-19 61-8"
-      fill="none" stroke="#f39ec4" stroke-width="7" stroke-linecap="round"/>
-    <path d="M338 74c12-21 41-25 58-7 18 18 11 48-11 58-20 9-47-1-56-22-9-21 1-46 22-55"
-      fill="none" stroke="#bf8be3" stroke-width="7" stroke-linecap="round"/>
-    <circle cx="428" cy="102" r="36" fill="none" stroke="url(#bfGold)" stroke-width="8"/>
-    <path d="M452 126l38 34" stroke="url(#bfGold)" stroke-width="12" stroke-linecap="round"/>
-    <path d="M413 92c8-13 27-15 37-3 11 13 5 30-9 37-13 6-31 0-37-14-6-14 0-28 9-34z"
-      fill="#f5aacd"/>
-    <path d="M178 86c9-15 32-18 44-4 13 15 6 35-11 43-16 7-37-1-43-18-5-8-2-16 1-21 2 0 4 0 5 0 2-10 4-10 4 0z"
-      fill="#f2a5cc"/>
-    <path d="M152 140c10-22 42-25 55-5 12 20 1 44-23 49-23 6-42-8-42-29 0-5 1-10 3-15 2 0 4 0 7 0z"
-      fill="#f8c0d8" stroke="#d48a58" stroke-width="3"/>
-    <g fill="#ffd795">
-      <path d="M118 116l7 13 14 2-10 9 3 14-12-7-12 7 2-14-10-9 14-2z"/>
-      <path d="M474 56l8 15 15 2-11 10 3 15-13-8-13 8 3-15-11-10 15-2z"/>
-      <path d="M514 132l8 14 15 2-11 10 3 15-13-8-13 8 3-15-11-10 15-2z"/>
-    </g>
-    <text x="20" y="214" font-size="84" font-weight="600" font-family="Brush Script MT, Segoe Script, cursive" fill="url(#bfScript)">Beauty Finder</text>
-  </g>
-</svg>
-`;
-const brandLogoUri = `data:image/svg+xml;utf8,${encodeURIComponent(brandLogoSvg)}`;
-const brandLogoAsset = require('../assets/branding/beauty-finder-logo.png');
-const brandLogoSource =
-  Platform.OS === 'web' ? { uri: brandLogoUri } : brandLogoAsset;
 
 function SectionHeader({
   eyebrow,
@@ -239,24 +188,24 @@ function ResultCard({
   const topService =
     [...business.services].sort((left, right) => right.price - left.price)[0] ??
     business.services[0];
-  const heroImage = getBusinessHeroImage(business);
 
   return (
     <View
       style={[styles.resultCard, compact ? styles.resultCardCompact : null]}
     >
-      <ImageBackground
-        source={{ uri: heroImage }}
-        style={styles.resultCardImage}
-        imageStyle={styles.resultCardImageInner}
-      >
+      <View style={styles.resultCardVisual}>
         <View style={styles.resultCardImageOverlay} />
         <View style={styles.resultCardRatingPill}>
           <Text style={styles.resultCardRatingText}>
             {business.rating.toFixed(1)} · {business.reviewCount} reviews
           </Text>
         </View>
-      </ImageBackground>
+        <BusinessLogoPanel
+          business={business}
+          size="card"
+          style={styles.resultCardIdentityPanel}
+        />
+      </View>
 
       <View style={styles.resultCardBody}>
         <View style={styles.resultCardHeader}>
@@ -737,28 +686,20 @@ export default function HomeScreen() {
       <Stack.Screen options={{ title: 'Beauty Finder', headerShown: false }} />
 
       <View style={styles.heroShell}>
-        <ImageBackground
-          source={{ uri: getBusinessHeroImage(activeHero) }}
+        <View
           style={[
             styles.heroStage,
             { minHeight: isDesktop ? 720 : isTablet ? 620 : 560 },
           ]}
-          imageStyle={styles.heroStageImage}
         >
-          <View style={styles.heroScrim} />
-          <View style={styles.heroSoftOverlay} />
+          <View style={styles.heroBackdropOrbPrimary} />
+          <View style={styles.heroBackdropOrbSecondary} />
+          <View style={styles.heroBackdropGrid} />
 
           <View style={styles.heroInner}>
             <View style={styles.topBar}>
               <View style={styles.brandRow}>
-                <Image
-                  source={brandLogoSource}
-                  style={[
-                    styles.brandLogo,
-                    isTablet ? null : styles.brandLogoMobile,
-                  ]}
-                  resizeMode="contain"
-                />
+                <BeautyFinderWordmark tone="dark" compact={!isTablet} />
               </View>
 
               {isDesktop ? (
@@ -919,21 +860,17 @@ export default function HomeScreen() {
                   />
                   <View style={styles.heroWelcomeCopy}>
                     <Text style={styles.heroWelcomeEyebrow}>
-                      Welcome to Beauty Finder
+                      Beauty Finder Select
                     </Text>
                     <Text style={styles.heroWelcomeTitle}>
-                      Fresh picks, polished first impression.
+                      Verified salons. Cleaner identity. Faster booking.
                     </Text>
                     <Text style={styles.heroWelcomeBody}>
                       {loading
                         ? 'We are lining up today’s featured salons and nearby beauty highlights.'
-                        : 'Start with the editorial banner, then move straight into live search and booking.'}
+                        : 'Search and booking stay live, while the storefront now leads with sharper logo-driven branding.'}
                     </Text>
                   </View>
-                  <HelloKittySticker
-                    size={isDesktop ? 126 : isTablet ? 112 : 98}
-                    style={styles.heroWelcomeMascot}
-                  />
                 </View>
 
                 <Text style={styles.heroEyebrow}>
@@ -1000,10 +937,11 @@ export default function HomeScreen() {
 
               <View style={styles.heroInfoCard}>
                 <Text style={styles.heroInfoEyebrow}>Featured now</Text>
-                <Text style={styles.heroInfoTitle}>{activeHero.name}</Text>
-                <Text style={styles.heroInfoMeta}>
-                  {activeHero.city}, {activeHero.state}
-                </Text>
+                <BusinessLogoPanel
+                  business={activeHero}
+                  size="hero"
+                  tone="dark"
+                />
                 <Text style={styles.heroInfoService}>
                   Premium pick · {heroPrimaryService?.name ?? 'Book now'} · $
                   {heroPrimaryService?.price ?? 0}
@@ -1031,7 +969,7 @@ export default function HomeScreen() {
               <View>
                 <Text style={styles.heroFooterTitle}>{activeHero.name}</Text>
                 <Text style={styles.heroFooterSubtitle}>
-                  Photo from the business owner
+                  Verified salon profile
                 </Text>
               </View>
               <Text style={styles.heroFooterCaption}>
@@ -1041,14 +979,14 @@ export default function HomeScreen() {
               </Text>
             </View>
           </View>
-        </ImageBackground>
+        </View>
       </View>
 
       <View style={styles.contentSurface}>
         <SectionHeader
           eyebrow="Recent Activity"
-          title="Your beauty home menu now starts like a storefront"
-          body="Search first, browse category shortcuts, and keep recent bookings and updates within the same landing page."
+          title="Your beauty home now opens with a cleaner brand system"
+          body="Search first, browse category shortcuts, and keep recent bookings and updates in the same polished landing flow."
         />
 
         <View
@@ -1199,7 +1137,7 @@ export default function HomeScreen() {
               ? `Beauty spots around ${locationQuery}`
               : 'Featured salons to open next'
           }
-          body="The hero stays editorial, but the listings below are still connected to live search, distance, and booking data."
+          body="The hero now leads with logo-first branding, while the listings below stay connected to live search, distance, and booking data."
         />
 
         {visibleBusinesses.length > 0 ? (
@@ -1241,21 +1179,40 @@ const styles = StyleSheet.create({
     backgroundColor: '#f4f1ec',
   },
   heroShell: {
-    backgroundColor: '#171717',
+    backgroundColor: '#0f1113',
   },
   heroStage: {
     justifyContent: 'space-between',
+    overflow: 'hidden',
+    backgroundColor: '#111317',
   },
-  heroStageImage: {
-    resizeMode: 'cover',
+  heroBackdropOrbPrimary: {
+    position: 'absolute',
+    top: -96,
+    right: -48,
+    width: 280,
+    height: 280,
+    borderRadius: 999,
+    backgroundColor: 'rgba(183, 138, 76, 0.18)',
   },
-  heroScrim: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(17, 17, 17, 0.42)',
+  heroBackdropOrbSecondary: {
+    position: 'absolute',
+    bottom: -110,
+    left: -54,
+    width: 250,
+    height: 250,
+    borderRadius: 999,
+    backgroundColor: 'rgba(126, 66, 92, 0.18)',
   },
-  heroSoftOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+  heroBackdropGrid: {
+    position: 'absolute',
+    top: 18,
+    right: 18,
+    bottom: 18,
+    left: 18,
+    borderRadius: 36,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.04)',
   },
   heroInner: {
     flex: 1,
@@ -1822,17 +1779,19 @@ const styles = StyleSheet.create({
   resultCardCompact: {
     width: '48.8%',
   },
-  resultCardImage: {
+  resultCardVisual: {
     minHeight: 230,
-    justifyContent: 'space-between',
     padding: 16,
-  },
-  resultCardImageInner: {
-    resizeMode: 'cover',
+    backgroundColor: '#111317',
+    justifyContent: 'space-between',
+    gap: 16,
   },
   resultCardImageOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(10, 10, 10, 0.18)',
+    backgroundColor: 'rgba(255, 255, 255, 0.02)',
+  },
+  resultCardIdentityPanel: {
+    marginTop: 'auto',
   },
   resultCardRatingPill: {
     alignSelf: 'flex-start',

@@ -23,6 +23,32 @@ export const previewOwnerUser: UserSummary = {
   email: previewOwnerCredentials.email,
 };
 
+function isLocalHostname(hostname: string) {
+  return hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '[::1]';
+}
+
+export function isOwnerPreviewEnabled() {
+  const configuredValue = process.env.NEXT_PUBLIC_ENABLE_PREVIEW_MODE?.trim().toLowerCase();
+
+  if (configuredValue === 'true') {
+    return true;
+  }
+
+  if (configuredValue === 'false') {
+    return false;
+  }
+
+  if (process.env.NODE_ENV === 'production') {
+    return false;
+  }
+
+  try {
+    return isLocalHostname(new URL(getApiBaseUrl()).hostname);
+  } catch {
+    return false;
+  }
+}
+
 export function getApiBaseUrl() {
   return process.env.NEXT_PUBLIC_API_URL ?? 'http://127.0.0.1:3000/api';
 }
@@ -46,36 +72,8 @@ function toApiAssetUrl(path: string) {
   return new URL(path, `${getApiOrigin()}/`).toString();
 }
 
-function getCookieValue(name: string) {
-  if (typeof document === 'undefined') {
-    return null;
-  }
-
-  const prefix = `${name}=`;
-  const cookie = document.cookie
-    .split(';')
-    .map((entry) => entry.trim())
-    .find((entry) => entry.startsWith(prefix));
-
-  return cookie ? decodeURIComponent(cookie.slice(prefix.length)) : null;
-}
-
-function getCookieMaxAge(expiresAt: string) {
-  const expiresAtTimestamp = Date.parse(expiresAt);
-
-  if (!Number.isFinite(expiresAtTimestamp)) {
-    return 60 * 60 * 24 * 7;
-  }
-
-  return Math.max(0, Math.floor((expiresAtTimestamp - Date.now()) / 1000));
-}
-
-export function getStoredOwnerToken() {
-  return getCookieValue(ownerSessionCookieName);
-}
-
 export function isPreviewOwnerToken(token?: string | null) {
-  return token === previewOwnerToken;
+  return isOwnerPreviewEnabled() && token === previewOwnerToken;
 }
 
 export function createPreviewOwnerSession(): SessionPayload {
@@ -87,41 +85,29 @@ export function createPreviewOwnerSession(): SessionPayload {
   };
 }
 
-export function saveOwnerSessionCookie(session: SessionPayload) {
-  if (typeof document === 'undefined') {
-    return;
+function getOwnerApiUrl(path: string, token?: string | null) {
+  if (!token && typeof window !== 'undefined') {
+    return `/api/backend${path}`;
   }
 
-  document.cookie = `${ownerSessionCookieName}=${encodeURIComponent(session.accessToken)}; Path=/; Max-Age=${getCookieMaxAge(session.expiresAt)}; SameSite=Lax`;
-}
-
-export function clearOwnerSessionCookie() {
-  if (typeof document === 'undefined') {
-    return;
-  }
-
-  document.cookie = `${ownerSessionCookieName}=; Path=/; Max-Age=0; SameSite=Lax`;
+  return `${getApiBaseUrl()}${path}`;
 }
 
 export function getOwnerHeaders(includeJson = false, token?: string | null) {
-  const resolvedToken = token ?? getStoredOwnerToken();
-
   return {
-    ...(resolvedToken ? { Authorization: `Bearer ${resolvedToken}` } : {}),
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...(includeJson ? { 'Content-Type': 'application/json' } : {}),
   };
 }
 
 export async function fetchOwnerJson<T>(path: string, token?: string | null) {
-  const headers = getOwnerHeaders(false, token);
-
-  if (!('Authorization' in headers)) {
+  if (!token && typeof window === 'undefined') {
     return null;
   }
 
   try {
-    const response = await fetch(`${getApiBaseUrl()}${path}`, {
-      headers,
+    const response = await fetch(getOwnerApiUrl(path, token), {
+      headers: getOwnerHeaders(false, token),
       cache: 'no-store',
     });
 
@@ -144,16 +130,14 @@ export async function saveOwnerBusinessProfile(
   input: OwnerBusinessUpdateInput,
   token?: string | null,
 ): Promise<OwnerBusinessProfile | null> {
-  const headers = getOwnerHeaders(true, token);
-
-  if (!('Authorization' in headers)) {
+  if (!token && typeof window === 'undefined') {
     return null;
   }
 
   try {
-    const response = await fetch(`${getApiBaseUrl()}/businesses/${businessId}/owner-profile`, {
+    const response = await fetch(getOwnerApiUrl(`/businesses/${businessId}/owner-profile`, token), {
       method: 'PATCH',
-      headers,
+      headers: getOwnerHeaders(true, token),
       body: JSON.stringify(input),
     });
 
@@ -171,15 +155,13 @@ export async function fetchOwnerTechnicians(
   businessId: string,
   token?: string | null,
 ): Promise<OwnerTechnicianProfile[] | null> {
-  const headers = getOwnerHeaders(false, token);
-
-  if (!('Authorization' in headers)) {
+  if (!token && typeof window === 'undefined') {
     return null;
   }
 
   try {
-    const response = await fetch(`${getApiBaseUrl()}/businesses/${businessId}/owner-technicians`, {
-      headers,
+    const response = await fetch(getOwnerApiUrl(`/businesses/${businessId}/owner-technicians`, token), {
+      headers: getOwnerHeaders(false, token),
       cache: 'no-store',
     });
 
@@ -198,16 +180,14 @@ export async function saveOwnerTechnicianRoster(
   technicians: OwnerTechnicianInput[],
   token?: string | null,
 ): Promise<OwnerTechnicianProfile[] | null> {
-  const headers = getOwnerHeaders(true, token);
-
-  if (!('Authorization' in headers)) {
+  if (!token && typeof window === 'undefined') {
     return null;
   }
 
   try {
-    const response = await fetch(`${getApiBaseUrl()}/businesses/${businessId}/owner-technicians`, {
+    const response = await fetch(getOwnerApiUrl(`/businesses/${businessId}/owner-technicians`, token), {
       method: 'PUT',
-      headers,
+      headers: getOwnerHeaders(true, token),
       body: JSON.stringify({
         technicians,
       }),
@@ -252,18 +232,16 @@ export async function uploadOwnerBusinessImage(
   file: File,
   token?: string | null,
 ) {
-  const headers = getOwnerHeaders(true, token);
-
-  if (!('Authorization' in headers)) {
+  if (!token && typeof window === 'undefined') {
     return null;
   }
 
   const base64 = await readFileAsBase64(file);
 
   try {
-    const response = await fetch(`${getApiBaseUrl()}/businesses/${businessId}/owner-media/image`, {
+    const response = await fetch(getOwnerApiUrl(`/businesses/${businessId}/owner-media/image`, token), {
       method: 'PATCH',
-      headers,
+      headers: getOwnerHeaders(true, token),
       body: JSON.stringify({
         filename: file.name,
         contentType: file.type || undefined,

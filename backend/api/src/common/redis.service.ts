@@ -3,7 +3,9 @@ import { createClient } from 'redis';
 
 type RedisHealth = {
   configured: boolean;
-  status: 'disabled' | 'down' | 'up';
+  status: 'disabled' | 'fallback' | 'up';
+  reason?: string;
+  target?: string;
 };
 
 type RedisClient = ReturnType<typeof createClient>;
@@ -12,6 +14,55 @@ type RedisClient = ReturnType<typeof createClient>;
 export class RedisService implements OnModuleDestroy {
   private readonly redisUrl = process.env.REDIS_URL?.trim();
   private clientPromise?: Promise<RedisClient | null>;
+  private readonly memoryCache = new Map<string, { value: string; expiresAt: number }>();
+  private readonly memoryNamespaceVersions = new Map<string, number>();
+  private lastConnectionFailure?: string;
+
+  private getRedisTarget() {
+    if (!this.redisUrl) {
+      return undefined;
+    }
+
+    try {
+      const parsed = new URL(this.redisUrl);
+      return `${parsed.hostname}${parsed.port ? `:${parsed.port}` : ''}`;
+    } catch {
+      return undefined;
+    }
+  }
+
+  private pruneExpiredMemoryCache() {
+    const now = Date.now();
+
+    for (const [key, entry] of this.memoryCache.entries()) {
+      if (entry.expiresAt <= now) {
+        this.memoryCache.delete(key);
+      }
+    }
+  }
+
+  private readMemoryCache<T>(key: string) {
+    this.pruneExpiredMemoryCache();
+    const entry = this.memoryCache.get(key);
+
+    if (!entry) {
+      return null;
+    }
+
+    return (JSON.parse(entry.value) as { value: T }).value;
+  }
+
+  private writeMemoryCache(key: string, ttlSeconds: number, value: unknown) {
+    this.memoryCache.set(key, {
+      value: JSON.stringify({ value }),
+      expiresAt: Date.now() + ttlSeconds * 1_000,
+    });
+  }
+
+  private getFallbackReason(defaultReason: string) {
+    const normalized = this.lastConnectionFailure?.trim();
+    return normalized ? normalized : defaultReason;
+  }
 
   private async getClient() {
     if (!this.redisUrl) {
@@ -30,9 +81,14 @@ export class RedisService implements OnModuleDestroy {
       client.on('error', () => undefined);
       this.clientPromise = client
         .connect()
-        .then(() => client)
-        .catch(async () => {
+        .then(() => {
+          this.lastConnectionFailure = undefined;
+          return client;
+        })
+        .catch(async (error) => {
           this.clientPromise = undefined;
+          this.lastConnectionFailure =
+            error instanceof Error ? error.message : 'Redis connection failed';
 
           if (client.isOpen) {
             await client.quit().catch(() => undefined);
@@ -64,7 +120,17 @@ export class RedisService implements OnModuleDestroy {
           return (JSON.parse(cached) as { value: T }).value;
         }
       } catch {
-        // Ignore cache read failures and fall back to the source of truth.
+        const cached = this.readMemoryCache<T>(key);
+
+        if (cached !== null) {
+          return cached;
+        }
+      }
+    } else {
+      const cached = this.readMemoryCache<T>(key);
+
+      if (cached !== null) {
+        return cached;
       }
     }
 
@@ -74,8 +140,10 @@ export class RedisService implements OnModuleDestroy {
       try {
         await client.set(key, JSON.stringify({ value }), { EX: ttlSeconds });
       } catch {
-        // Ignore cache write failures and return the fresh value.
+        this.writeMemoryCache(key, ttlSeconds, value);
       }
+    } else {
+      this.writeMemoryCache(key, ttlSeconds, value);
     }
 
     return value;
@@ -85,7 +153,7 @@ export class RedisService implements OnModuleDestroy {
     const client = await this.getClient();
 
     if (!client) {
-      return 1;
+      return this.memoryNamespaceVersions.get(namespace) ?? 1;
     }
 
     try {
@@ -94,7 +162,7 @@ export class RedisService implements OnModuleDestroy {
 
       return Number.isFinite(parsed) && parsed > 0 ? parsed : 1;
     } catch {
-      return 1;
+      return this.memoryNamespaceVersions.get(namespace) ?? 1;
     }
   }
 
@@ -102,21 +170,28 @@ export class RedisService implements OnModuleDestroy {
     const client = await this.getClient();
 
     if (!client) {
-      return 1;
+      const nextVersion = (this.memoryNamespaceVersions.get(namespace) ?? 1) + 1;
+      this.memoryNamespaceVersions.set(namespace, nextVersion);
+      return nextVersion;
     }
 
     try {
       return await client.incr(this.getNamespaceVersionKey(namespace));
     } catch {
-      return 1;
+      const nextVersion = (this.memoryNamespaceVersions.get(namespace) ?? 1) + 1;
+      this.memoryNamespaceVersions.set(namespace, nextVersion);
+      return nextVersion;
     }
   }
 
   async getHealth(): Promise<RedisHealth> {
+    const target = this.getRedisTarget();
+
     if (!this.redisUrl) {
       return {
         configured: false,
         status: 'disabled',
+        target,
       };
     }
 
@@ -125,7 +200,11 @@ export class RedisService implements OnModuleDestroy {
     if (!client) {
       return {
         configured: true,
-        status: 'down',
+        status: 'fallback',
+        target,
+        reason: this.getFallbackReason(
+          'Redis is unavailable. Falling back to in-memory cache behavior for this process.',
+        ),
       };
     }
 
@@ -134,12 +213,23 @@ export class RedisService implements OnModuleDestroy {
 
       return {
         configured: true,
-        status: response === 'PONG' ? 'up' : 'down',
+        status: response === 'PONG' ? 'up' : 'fallback',
+        target,
+        ...(response === 'PONG'
+          ? {}
+          : {
+              reason:
+                'Redis responded unexpectedly. Falling back to in-memory cache behavior for this process.',
+            }),
       };
     } catch {
       return {
         configured: true,
-        status: 'down',
+        status: 'fallback',
+        target,
+        reason: this.getFallbackReason(
+          'Redis ping failed. Falling back to in-memory cache behavior for this process.',
+        ),
       };
     }
   }

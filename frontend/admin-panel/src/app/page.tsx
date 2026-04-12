@@ -1,3 +1,4 @@
+import { redirect } from 'next/navigation';
 import type {
   AdminActionRecord,
   AdminBusinessQueueItem,
@@ -10,13 +11,18 @@ import type {
 } from '@beauty-finder/types';
 import { AccountAccessManager } from '../components/account-access-manager';
 import { AdPricingManager } from '../components/ad-pricing-manager';
+import { AdminSessionControls } from '../components/admin-session-controls';
 import { AuditLogPanel } from '../components/audit-log-panel';
 import { BusinessModerationBoard } from '../components/business-moderation-board';
 import { ConversationMonitorBoard } from '../components/conversation-monitor-board';
 import { CustomerInsightReport } from '../components/customer-insight-report';
 import { HomepageOrderManager } from '../components/homepage-order-manager';
 import { ReviewModerationBoard } from '../components/review-moderation-board';
-import { fetchAdminJson } from '../lib/admin-api';
+import {
+  fetchAdminJson,
+  fetchAuthenticatedUser,
+} from '../lib/admin-api';
+import { getAdminSessionToken } from '../lib/admin-session';
 
 const quickLinks = [
   { label: 'Account access', href: '#account-access' },
@@ -397,6 +403,18 @@ function formatActionSummary(action: AdminActionRecord) {
 }
 
 export default async function AdminPanelPage() {
+  const adminToken = await getAdminSessionToken();
+
+  if (!adminToken) {
+    redirect('/auth');
+  }
+
+  const adminUser = await fetchAuthenticatedUser(adminToken);
+
+  if (!adminUser || adminUser.role !== 'admin') {
+    redirect('/auth');
+  }
+
   const [
     overview,
     customerInsightReport,
@@ -407,14 +425,14 @@ export default async function AdminPanelPage() {
     conversationCases,
     auditActions,
   ] = await Promise.all([
-    fetchAdminJson<AdminOverview>('/admin/overview'),
-    fetchAdminJson<CustomerPreferenceReportRecord>('/admin/customer-insights/report'),
-    fetchAdminJson<AdPricingRecord[]>('/admin/ad-pricing'),
-    fetchAdminJson<BusinessSummary[]>('/admin/homepage-businesses'),
-    fetchAdminJson<AdminBusinessQueueItem[]>('/admin/businesses'),
-    fetchAdminJson<AdminReviewQueueItem[]>('/admin/reviews'),
-    fetchAdminJson<AdminConversationCase[]>('/admin/conversations'),
-    fetchAdminJson<AdminActionRecord[]>('/admin/audit-actions'),
+    fetchAdminJson<AdminOverview>('/admin/overview', adminToken),
+    fetchAdminJson<CustomerPreferenceReportRecord>('/admin/customer-insights/report', adminToken),
+    fetchAdminJson<AdPricingRecord[]>('/admin/ad-pricing', adminToken),
+    fetchAdminJson<BusinessSummary[]>('/admin/homepage-businesses', adminToken),
+    fetchAdminJson<AdminBusinessQueueItem[]>('/admin/businesses', adminToken),
+    fetchAdminJson<AdminReviewQueueItem[]>('/admin/reviews', adminToken),
+    fetchAdminJson<AdminConversationCase[]>('/admin/conversations', adminToken),
+    fetchAdminJson<AdminActionRecord[]>('/admin/audit-actions', adminToken),
   ]);
 
   const safeOverview = overview ?? fallbackOverview;
@@ -517,6 +535,8 @@ export default async function AdminPanelPage() {
             </a>
           ))}
         </div>
+
+        <AdminSessionControls adminName={adminUser.name} />
       </section>
 
       <section

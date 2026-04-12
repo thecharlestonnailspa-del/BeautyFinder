@@ -1,4 +1,3 @@
-import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import type {
   BookingRecord,
@@ -16,18 +15,19 @@ import { OwnerTechnicianDesk } from '../components/owner-technician-desk';
 import {
   fetchAuthenticatedUser,
   fetchOwnerJson,
+  isOwnerPreviewEnabled,
   isPreviewOwnerToken,
-  ownerSessionCookieName,
   previewOwnerUser,
 } from '../lib/owner-api';
+import { getOwnerSessionToken } from '../lib/owner-session';
 
-const ribbons = ['Business edits', 'Media refresh', 'Promotion control'];
+const ribbons = ['Salon profile', 'Bookings', 'Team roster'];
 const workspaceAnchors = [
   { label: 'Overview', href: '#overview' },
   { label: 'Operations', href: '#operations' },
   { label: 'Audience', href: '#audience' },
-  { label: 'Business', href: '#business-workspace' },
-  { label: 'Technicians', href: '#technician-desk' },
+  { label: 'Salon', href: '#business-workspace' },
+  { label: 'Team', href: '#technician-desk' },
 ] as const;
 const fallbackOwnerId = 'user-owner-1';
 
@@ -231,14 +231,14 @@ function formatTimeRange(startAt: string, endAt: string) {
 }
 
 export default async function OwnerDashboardPage() {
-  const cookieStore = await cookies();
-  const activeOwnerToken = cookieStore.get(ownerSessionCookieName)?.value;
+  const activeOwnerToken = await getOwnerSessionToken();
+  const previewEnabled = isOwnerPreviewEnabled();
 
   if (!activeOwnerToken) {
     redirect('/auth?mode=login');
   }
 
-  const previewMode = isPreviewOwnerToken(activeOwnerToken);
+  const previewMode = previewEnabled && isPreviewOwnerToken(activeOwnerToken);
   const ownerUser = previewMode
     ? previewOwnerUser
     : await fetchAuthenticatedUser(activeOwnerToken);
@@ -248,7 +248,7 @@ export default async function OwnerDashboardPage() {
   }
 
   const activeOwnerId = ownerUser.id;
-  const usingSeededOwner = activeOwnerId === fallbackOwnerId;
+  const usingSeededOwner = previewEnabled && activeOwnerId === fallbackOwnerId;
 
   const [bookings, ownerProfiles, notifications, ownerAudienceReport] = await Promise.all([
     previewMode
@@ -293,41 +293,34 @@ export default async function OwnerDashboardPage() {
           businesses: [],
         };
 
-  const pendingReviewCount = ownerBusinesses.filter(
-    (business) => business.status === 'pending_review',
-  ).length;
-  const approvedBusinesses = ownerBusinesses.filter((business) => business.status === 'approved');
-  const featuredBusinesses = ownerBusinesses.filter((business) => business.featuredOnHomepage);
-  const totalActiveServices = ownerBusinesses.reduce(
-    (sum, business) => sum + business.services.filter((service) => service.isActive).length,
-    0,
-  );
-  const totalActiveStaff = ownerBusinesses.reduce(
-    (sum, business) => sum + business.staff.filter((member) => member.isActive).length,
-    0,
-  );
-  const averageRating =
-    ownerBusinesses.length > 0
-      ? (
-          ownerBusinesses.reduce((sum, business) => sum + business.rating, 0) /
-          ownerBusinesses.length
-        ).toFixed(1)
-      : '0.0';
+  const primaryBusiness = ownerBusinesses[0] ?? null;
+  const workspaceBusinesses = primaryBusiness ? [primaryBusiness] : [];
+  const salonBookings = primaryBusiness
+    ? ownerBookings.filter((booking) => booking.businessId === primaryBusiness.id)
+    : ownerBookings;
+  const pendingReviewCount = primaryBusiness?.status === 'pending_review' ? 1 : 0;
+  const totalActiveServices = primaryBusiness
+    ? primaryBusiness.services.filter((service) => service.isActive).length
+    : 0;
+  const totalActiveStaff = primaryBusiness
+    ? primaryBusiness.staff.filter((member) => member.isActive).length
+    : 0;
+  const averageRating = primaryBusiness ? primaryBusiness.rating.toFixed(1) : '0.0';
   const topService =
-    ownerBusinesses
-      .flatMap((business) => business.services)
+    primaryBusiness?.services
       .filter((service) => service.isActive)
       .sort((left, right) => right.price - left.price)[0]?.name ?? 'Gel Manicure';
   const recentNotifications = ownerNotifications.slice(0, 3);
-  const primaryBusiness = ownerBusinesses[0];
-  const latestAudienceActivity =
-    ownerAudience.businesses
-      .map((business) => business.lastViewedAt)
-      .filter(Boolean)
-      .sort((left, right) => new Date(right ?? '').getTime() - new Date(left ?? '').getTime())[0] ??
-    null;
+  const primaryAudienceBusiness =
+    primaryBusiness
+      ? ownerAudience.businesses.find((business) => business.businessId === primaryBusiness.id) ?? null
+      : ownerAudience.businesses[0] ?? null;
+  const salonAudienceBusinesses = primaryAudienceBusiness ? [primaryAudienceBusiness] : [];
+  const latestAudienceActivity = primaryAudienceBusiness?.lastViewedAt ?? null;
+  const salonUniqueViewers = primaryAudienceBusiness?.uniqueViewers ?? 0;
+  const salonPageViews = primaryAudienceBusiness?.totalPageViews ?? 0;
 
-  const appointments = ownerBookings.slice(0, 4).map((booking) => ({
+  const appointments = salonBookings.slice(0, 4).map((booking) => ({
     id: booking.id,
     client:
       booking.customerId === 'user-customer-1'
@@ -346,8 +339,8 @@ export default async function OwnerDashboardPage() {
     {
       icon: 'bookings' as OwnerMotionIconName,
       label: 'Today bookings',
-      value: String(ownerBookings.length),
-      detail: 'Appointments linked to this owner account',
+      value: String(salonBookings.length),
+      detail: 'Appointments linked to this salon',
     },
     {
       icon: 'inbox' as OwnerMotionIconName,
@@ -358,8 +351,8 @@ export default async function OwnerDashboardPage() {
     {
       icon: 'audience' as OwnerMotionIconName,
       label: 'Customers viewed',
-      value: String(ownerAudience.totalUniqueViewers),
-      detail: 'Unique customers who opened your pages',
+      value: String(salonUniqueViewers),
+      detail: 'Unique customers who opened this salon page',
     },
     {
       icon: 'review' as OwnerMotionIconName,
@@ -371,7 +364,7 @@ export default async function OwnerDashboardPage() {
       icon: 'rating' as OwnerMotionIconName,
       label: 'Average rating',
       value: averageRating,
-      detail: 'Across your current business portfolio',
+      detail: 'Current rating for this salon',
     },
   ];
 
@@ -379,7 +372,7 @@ export default async function OwnerDashboardPage() {
     recentNotifications[0]?.body ??
     (previewMode
       ? 'Preview mode is active. Changes save locally on this device until the API is reachable again.'
-      : 'Business profile controls and technician roster now live in separate sections below.');
+      : 'Salon profile controls and team roster now live in separate sections below.');
 
   return (
     <main
@@ -461,7 +454,7 @@ export default async function OwnerDashboardPage() {
                     textTransform: 'uppercase',
                   }}
                 >
-                  {previewMode ? 'Preview owner workspace' : 'Owner operations workspace'}
+                  {previewMode ? 'Preview salon owner workspace' : 'Salon owner workspace'}
                 </span>
               </div>
 
@@ -475,7 +468,7 @@ export default async function OwnerDashboardPage() {
                     letterSpacing: '-0.04em',
                   }}
                 >
-                  A cleaner command center for salon operations, traffic, and listing updates.
+                  A cleaner command center for one salon owner and one salon.
                 </h1>
                 <p
                   style={{
@@ -486,8 +479,8 @@ export default async function OwnerDashboardPage() {
                     lineHeight: 1.75,
                   }}
                 >
-                  Track bookings, review recent customer activity, and keep your salon profile sharp
-                  without bouncing between separate tools.
+                  Track bookings, review recent customer activity, and keep this salon profile
+                  sharp without mixing in other account types.
                 </p>
               </div>
 
@@ -523,7 +516,7 @@ export default async function OwnerDashboardPage() {
                     fontSize: 13,
                   }}
                 >
-                  Register business
+                  Register salon owner
                 </a>
               </div>
 
@@ -578,7 +571,7 @@ export default async function OwnerDashboardPage() {
                       color: 'rgba(255, 244, 240, 0.75)',
                     }}
                   >
-                    Portfolio snapshot
+                    Salon snapshot
                   </span>
                   <strong style={{ fontSize: 24, lineHeight: 1.15 }}>
                     {primaryBusiness?.name ?? 'No salon yet'}
@@ -602,13 +595,13 @@ export default async function OwnerDashboardPage() {
                 {[
                   {
                     icon: 'listings' as OwnerMotionIconName,
-                    label: 'Live salons',
-                    value: String(approvedBusinesses.length),
+                    label: 'Salon status',
+                    value: primaryBusiness ? businessStatusLabels[primaryBusiness.status] : 'None',
                   },
                   {
                     icon: 'traffic' as OwnerMotionIconName,
-                    label: 'Featured',
-                    value: String(featuredBusinesses.length),
+                    label: 'Homepage feature',
+                    value: primaryBusiness?.featuredOnHomepage ? 'Live' : 'Off',
                   },
                   {
                     icon: 'services' as OwnerMotionIconName,
@@ -695,9 +688,8 @@ export default async function OwnerDashboardPage() {
               fontWeight: 700,
             }}
           >
-            {pendingReviewCount} business {pendingReviewCount === 1 ? 'is' : 'are'} waiting for
-            admin review. You can keep editing services, pricing, media, and promotions while the
-            listing is pending.
+            This salon is waiting for admin review. You can keep editing services, pricing, media,
+            and promotions while the listing is pending.
           </section>
         ) : null}
 
@@ -787,7 +779,7 @@ export default async function OwnerDashboardPage() {
                   fontSize: 13,
                 }}
               >
-                {approvedBusinesses.length} approved salons live
+                {primaryBusiness ? businessStatusLabels[primaryBusiness.status] : 'No salon linked'}
               </div>
             </div>
 
@@ -944,66 +936,63 @@ export default async function OwnerDashboardPage() {
                 <OwnerMotionIcon name="listings" size={50} />
                 <div>
                 <p style={sectionEyebrowStyle}>Listings</p>
-                <h2 style={{ ...sectionTitleStyle, fontSize: 26 }}>Portfolio status</h2>
+                <h2 style={{ ...sectionTitleStyle, fontSize: 26 }}>Salon status</h2>
                 </div>
               </div>
 
               <div style={{ display: 'grid', gap: 12 }}>
-                {ownerBusinesses.length > 0 ? (
-                  ownerBusinesses.map((business) => (
+                {primaryBusiness ? (
+                  <div
+                    style={{
+                      borderRadius: 20,
+                      padding: 16,
+                      border: '1px solid rgba(113, 70, 90, 0.1)',
+                      background: '#fffcfb',
+                      display: 'grid',
+                      gap: 10,
+                    }}
+                  >
                     <div
-                      key={business.id}
                       style={{
-                        borderRadius: 20,
-                        padding: 16,
-                        border: '1px solid rgba(113, 70, 90, 0.1)',
-                        background: '#fffcfb',
-                        display: 'grid',
-                        gap: 10,
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        gap: 12,
+                        alignItems: 'center',
+                        flexWrap: 'wrap',
                       }}
                     >
-                      <div
-                        style={{
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          gap: 12,
-                          alignItems: 'center',
-                          flexWrap: 'wrap',
-                        }}
-                      >
-                        <div style={{ display: 'grid', gap: 4 }}>
-                          <strong style={{ color: '#24171b', fontSize: 17 }}>{business.name}</strong>
-                          <span style={{ color: '#7b646c' }}>
-                            {business.city}, {business.state}
-                          </span>
-                        </div>
-                        <span
-                          style={{
-                            borderRadius: 999,
-                            padding: '7px 10px',
-                            fontSize: 12,
-                            fontWeight: 800,
-                            ...businessStatusStyles[business.status],
-                          }}
-                        >
-                          {businessStatusLabels[business.status]}
+                      <div style={{ display: 'grid', gap: 4 }}>
+                        <strong style={{ color: '#24171b', fontSize: 17 }}>{primaryBusiness.name}</strong>
+                        <span style={{ color: '#7b646c' }}>
+                          {primaryBusiness.city}, {primaryBusiness.state}
                         </span>
                       </div>
-                      <div
+                      <span
                         style={{
-                          display: 'grid',
-                          gap: 8,
-                          gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
-                          color: '#5f4d55',
+                          borderRadius: 999,
+                          padding: '7px 10px',
+                          fontSize: 12,
+                          fontWeight: 800,
+                          ...businessStatusStyles[primaryBusiness.status],
                         }}
                       >
-                        <div>{business.services.filter((service) => service.isActive).length} active services</div>
-                        <div>{business.staff.filter((member) => member.isActive).length} active staff</div>
-                        <div>{business.reviewCount} reviews</div>
-                        <div>{business.rating.toFixed(1)} average rating</div>
-                      </div>
+                        {businessStatusLabels[primaryBusiness.status]}
+                      </span>
                     </div>
-                  ))
+                    <div
+                      style={{
+                        display: 'grid',
+                        gap: 8,
+                        gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+                        color: '#5f4d55',
+                      }}
+                    >
+                      <div>{totalActiveServices} active services</div>
+                      <div>{totalActiveStaff} active staff</div>
+                      <div>{primaryBusiness.reviewCount} reviews</div>
+                      <div>{primaryBusiness.rating.toFixed(1)} average rating</div>
+                    </div>
+                  </div>
                 ) : (
                   <div
                     style={{
@@ -1047,8 +1036,8 @@ export default async function OwnerDashboardPage() {
               <p style={sectionEyebrowStyle}>Audience intelligence</p>
               <h2 style={sectionTitleStyle}>Customers viewing your salon pages</h2>
               <p style={{ ...mutedTextStyle, margin: '10px 0 0', maxWidth: 760 }}>
-                See how many unique customers reached your page, how long they stayed, and which
-                business profiles are drawing attention right now.
+                See how many unique customers reached this salon page, how long they stayed, and
+                how the listing is performing right now.
               </p>
               </div>
             </div>
@@ -1077,20 +1066,20 @@ export default async function OwnerDashboardPage() {
               {
                 icon: 'audience' as OwnerMotionIconName,
                 label: 'Unique customers',
-                value: String(ownerAudience.totalUniqueViewers),
-                detail: 'Distinct viewers across all your salon pages',
+                value: String(salonUniqueViewers),
+                detail: 'Distinct viewers on this salon page',
               },
               {
                 icon: 'traffic' as OwnerMotionIconName,
                 label: 'Total page views',
-                value: String(ownerAudience.totalPageViews),
-                detail: 'Overall visits recorded by the browsing tracker',
+                value: String(salonPageViews),
+                detail: 'Visits recorded for this salon',
               },
               {
                 icon: 'listings' as OwnerMotionIconName,
-                label: 'Businesses with traffic',
-                value: String(ownerAudience.businessesWithViews),
-                detail: 'Listings with at least one tracked visit',
+                label: 'Tracked salon pages',
+                value: String(salonAudienceBusinesses.length),
+                detail: 'Salon pages with at least one tracked visit',
               },
               {
                 icon: 'review' as OwnerMotionIconName,
@@ -1122,9 +1111,9 @@ export default async function OwnerDashboardPage() {
             ))}
           </div>
 
-          {ownerAudience.businesses.length > 0 ? (
+          {salonAudienceBusinesses.length > 0 ? (
             <div style={{ display: 'grid', gap: 12 }}>
-              {ownerAudience.businesses.map((business) => (
+              {salonAudienceBusinesses.map((business) => (
                 <article
                   key={business.businessId}
                   style={{
@@ -1210,16 +1199,15 @@ export default async function OwnerDashboardPage() {
             <div style={{ display: 'grid', gap: 8 }}>
             <p style={sectionEyebrowStyle}>Business workspace</p>
             <h2 style={sectionTitleStyle}>Salon owner business settings</h2>
-            <p style={{ ...mutedTextStyle, margin: 0, maxWidth: 780 }}>
-              Keep the salon profile, services, media library, and promotions up to date without
-              mixing them into private technician management.
+              <p style={{ ...mutedTextStyle, margin: 0, maxWidth: 780 }}>
+              Keep the salon profile, services, media library, and promotions up to date in one
+              place for this salon owner account.
             </p>
             </div>
           </div>
 
           <OwnerBusinessWorkspace
-            initialBusinesses={ownerBusinesses}
-            authToken={activeOwnerToken}
+            initialBusinesses={workspaceBusinesses}
             previewMode={previewMode}
           />
         </section>
@@ -1234,18 +1222,17 @@ export default async function OwnerDashboardPage() {
           <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
             <OwnerMotionIcon name="team" size={54} />
             <div style={{ display: 'grid', gap: 8 }}>
-              <p style={sectionEyebrowStyle}>Technician desk</p>
-              <h2 style={sectionTitleStyle}>Private technician roster</h2>
+              <p style={sectionEyebrowStyle}>Team desk</p>
+              <h2 style={sectionTitleStyle}>Salon team roster</h2>
               <p style={{ ...mutedTextStyle, margin: 0, maxWidth: 780 }}>
-                Manage technicians separately from salon owner profile settings so identity,
-                availability, and internal team records stay in their own workspace.
+                Manage staff members separately from salon profile settings so availability,
+                avatars, and internal team records stay in their own workspace.
               </p>
             </div>
           </div>
 
           <OwnerTechnicianDesk
-            initialBusinesses={ownerBusinesses}
-            authToken={activeOwnerToken}
+            initialBusinesses={workspaceBusinesses}
             previewMode={previewMode}
           />
         </section>

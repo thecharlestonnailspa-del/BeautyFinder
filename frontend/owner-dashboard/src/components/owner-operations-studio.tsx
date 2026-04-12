@@ -167,7 +167,7 @@ function buildUpdatePayload(business: OwnerBusinessProfile): OwnerBusinessUpdate
   return {
     name: business.name.trim(),
     description: business.description.trim(),
-    heroImage: business.heroImage.trim(),
+    heroImage: business.heroImage.trim() || undefined,
     businessLogo: business.businessLogo?.trim() || undefined,
     businessBanner: business.businessBanner?.trim() || undefined,
     ownerAvatar: business.ownerAvatar?.trim() || undefined,
@@ -187,21 +187,20 @@ function buildUpdatePayload(business: OwnerBusinessProfile): OwnerBusinessUpdate
 
 export function OwnerBusinessWorkspace({
   initialBusinesses,
-  authToken,
   previewMode = false,
 }: {
   initialBusinesses: OwnerBusinessProfile[];
-  authToken?: string;
   previewMode?: boolean;
 }) {
   const [businesses, setBusinesses] = useState(initialBusinesses);
   const [selectedBusinessId, setSelectedBusinessId] = useState(initialBusinesses[0]?.id ?? '');
+  const hasMultipleBusinesses = initialBusinesses.length > 1;
   const [statusMessage, setStatusMessage] = useState(
     initialBusinesses.length > 0
       ? previewMode
-        ? 'Preview mode is active. Add services and save changes locally on this device.'
-        : 'Edit business details, logo, banner, owner avatar, pricing, media, and promotions here. Technician roster is managed separately below.'
-      : 'No owner businesses available yet.',
+        ? 'Preview mode is active. Add services and save this salon locally on this device.'
+        : 'Edit this salon profile, logo, banner, owner avatar, pricing, media, and promotions here. Team roster is managed separately below.'
+      : 'No salon is linked to this owner account yet.',
   );
   const [savingBusinessId, setSavingBusinessId] = useState<string | null>(null);
   const [uploadingMediaTarget, setUploadingMediaTarget] = useState<MediaUploadTarget | null>(
@@ -242,7 +241,7 @@ export function OwnerBusinessWorkspace({
           ? current
           : parsedBusinesses[0]?.id ?? '',
       );
-      setStatusMessage('Loaded your saved preview changes for owner businesses.');
+      setStatusMessage('Loaded your saved preview changes for this salon.');
     } catch {
       window.localStorage.removeItem(previewOwnerBusinessesStorageKey);
     } finally {
@@ -306,13 +305,53 @@ export function OwnerBusinessWorkspace({
     updateBusiness(activeBusiness.id, updater);
   }
 
+  function selectGalleryImageAsHero(url: string) {
+    const nextHeroImage = url.trim();
+
+    if (!nextHeroImage) {
+      setStatusMessage('Choose or upload a gallery image before selecting it as the hero image.');
+      return;
+    }
+
+    updateActiveBusiness((business) => ({ ...business, heroImage: nextHeroImage }));
+    setStatusMessage('Hero image selected from the gallery. Save media changes to persist it.');
+  }
+
+  function removeGalleryImage(index: number) {
+    if (!activeBusiness) {
+      return;
+    }
+
+    const removedUrl = activeBusiness.galleryImages[index]?.trim() ?? '';
+    const wasHeroImage = removedUrl.length > 0 && activeBusiness.heroImage.trim() === removedUrl;
+
+    updateActiveBusiness((business) => {
+      const nextGalleryImages = business.galleryImages.filter((_, itemIndex) => itemIndex !== index);
+      const nextHeroImage = wasHeroImage
+        ? nextGalleryImages.map((url) => url.trim()).find(Boolean) ?? ''
+        : business.heroImage;
+
+      return {
+        ...business,
+        galleryImages: nextGalleryImages,
+        heroImage: nextHeroImage,
+      };
+    });
+
+    setStatusMessage(
+      wasHeroImage
+        ? 'The selected hero image was removed from the gallery. Save media changes to persist the next hero choice.'
+        : 'Gallery image removed. Save media changes to persist it.',
+    );
+  }
+
   async function persistBusiness(
     business: OwnerBusinessProfile,
     successMessage: string,
     fallbackMessage: string,
   ) {
     setSavingBusinessId(business.id);
-    const updated = await saveOwnerBusinessProfile(business.id, buildUpdatePayload(business), authToken);
+    const updated = await saveOwnerBusinessProfile(business.id, buildUpdatePayload(business));
 
     if (updated) {
       setBusinesses((current) =>
@@ -375,7 +414,7 @@ export function OwnerBusinessWorkspace({
     setUploadingMediaTarget(target);
     setStatusMessage(`Uploading ${targetLabel} for ${businessName}...`);
 
-    const uploadedUrl = await uploadOwnerBusinessImage(businessId, file, authToken);
+    const uploadedUrl = await uploadOwnerBusinessImage(businessId, file);
 
     if (uploadedUrl) {
       const baseBusiness = activeBusiness;
@@ -387,6 +426,7 @@ export function OwnerBusinessWorkspace({
             return {
               ...baseBusiness,
               galleryImages: [...baseBusiness.galleryImages, uploadedUrl],
+              heroImage: baseBusiness.heroImage.trim() || uploadedUrl,
             };
           case 'logo':
             return { ...baseBusiness, businessLogo: uploadedUrl };
@@ -509,14 +549,15 @@ export function OwnerBusinessWorkspace({
               textTransform: 'uppercase',
             }}
           >
-            Business workspace
+            Salon workspace
           </p>
           <h2 style={{ margin: 0, fontSize: 32, color: '#24171b', lineHeight: 1.12 }}>
-            Update business profile, services, media, and promos from one place
+            Update this salon profile, services, media, and promos from one place
           </h2>
           <p style={{ margin: 0, color: '#6f5961', lineHeight: 1.7 }}>
-            Pick a salon, tune its service list, refresh gallery URLs, add a video reel, and push a
-            promotion without leaving the owner dashboard. Technician records live in a separate desk.
+            {hasMultipleBusinesses
+              ? 'Pick the salon you want to edit, tune its service list, refresh gallery URLs, add a video reel, and push a promotion without leaving the owner dashboard. Team records live in a separate desk.'
+              : 'Tune the service list, refresh gallery URLs, add a video reel, and push a promotion without leaving the owner dashboard. Team records live in a separate desk.'}
           </p>
           </div>
         </div>
@@ -538,7 +579,7 @@ export function OwnerBusinessWorkspace({
             minWidth: 170,
           }}
         >
-          {savingBusinessId === activeBusiness.id ? 'Saving...' : 'Save owner changes'}
+          {savingBusinessId === activeBusiness.id ? 'Saving...' : 'Save salon changes'}
         </button>
       </div>
 
@@ -555,73 +596,75 @@ export function OwnerBusinessWorkspace({
         {statusMessage}
       </div>
 
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
-        {businesses.map((business) => (
-          <button
-            key={business.id}
-            type="button"
-            onClick={() => {
-              setSelectedBusinessId(business.id);
-              setStatusMessage(`Editing ${business.name}.`);
-            }}
-            style={{
-              border:
-                business.id === activeBusiness.id
-                  ? '2px solid #6f404a'
-                  : '1px solid rgba(113, 70, 90, 0.14)',
-              background:
-                business.id === activeBusiness.id
-                  ? 'linear-gradient(135deg, #f7ede8, #fff9f6)'
-                  : '#ffffff',
-              borderRadius: 22,
-              padding: '14px 16px',
-              cursor: 'pointer',
-              display: 'grid',
-              gap: 4,
-              minWidth: 180,
-              textAlign: 'left',
-            }}
-          >
-            <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-              <div
-                style={{
-                  width: 42,
-                  height: 42,
-                  borderRadius: 14,
-                  border: '1px solid rgba(113, 70, 90, 0.12)',
-                  background: business.businessLogo
-                    ? `center / cover no-repeat url(${business.businessLogo})`
-                    : 'linear-gradient(135deg, #f4ddd3, #fdf7f2)',
-                  display: 'grid',
-                  placeItems: 'center',
-                  color: '#7e4c59',
-                  fontWeight: 900,
-                  fontSize: 14,
-                  overflow: 'hidden',
-                }}
-              >
-                {!business.businessLogo ? business.name.slice(0, 1).toUpperCase() : null}
-              </div>
-              <span style={{ fontWeight: 800, color: '#24171b', fontSize: 15 }}>{business.name}</span>
-            </div>
-            <span style={{ color: '#756067', fontSize: 12 }}>
-              {business.city}, {business.state}
-            </span>
-            <span
+      {hasMultipleBusinesses ? (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
+          {businesses.map((business) => (
+            <button
+              key={business.id}
+              type="button"
+              onClick={() => {
+                setSelectedBusinessId(business.id);
+                setStatusMessage(`Editing ${business.name}.`);
+              }}
               style={{
-                justifySelf: 'start',
-                borderRadius: 999,
-                padding: '6px 10px',
-                fontSize: 11,
-                fontWeight: 800,
-                ...businessStatusStyles[business.status],
+                border:
+                  business.id === activeBusiness.id
+                    ? '2px solid #6f404a'
+                    : '1px solid rgba(113, 70, 90, 0.14)',
+                background:
+                  business.id === activeBusiness.id
+                    ? 'linear-gradient(135deg, #f7ede8, #fff9f6)'
+                    : '#ffffff',
+                borderRadius: 22,
+                padding: '14px 16px',
+                cursor: 'pointer',
+                display: 'grid',
+                gap: 4,
+                minWidth: 180,
+                textAlign: 'left',
               }}
             >
-              {businessStatusLabels[business.status]}
-            </span>
-          </button>
-        ))}
-      </div>
+              <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                <div
+                  style={{
+                    width: 42,
+                    height: 42,
+                    borderRadius: 14,
+                    border: '1px solid rgba(113, 70, 90, 0.12)',
+                    background: business.businessLogo
+                      ? `center / cover no-repeat url(${business.businessLogo})`
+                      : 'linear-gradient(135deg, #f4ddd3, #fdf7f2)',
+                    display: 'grid',
+                    placeItems: 'center',
+                    color: '#7e4c59',
+                    fontWeight: 900,
+                    fontSize: 14,
+                    overflow: 'hidden',
+                  }}
+                >
+                  {!business.businessLogo ? business.name.slice(0, 1).toUpperCase() : null}
+                </div>
+                <span style={{ fontWeight: 800, color: '#24171b', fontSize: 15 }}>{business.name}</span>
+              </div>
+              <span style={{ color: '#756067', fontSize: 12 }}>
+                {business.city}, {business.state}
+              </span>
+              <span
+                style={{
+                  justifySelf: 'start',
+                  borderRadius: 999,
+                  padding: '6px 10px',
+                  fontSize: 11,
+                  fontWeight: 800,
+                  ...businessStatusStyles[business.status],
+                }}
+              >
+                {businessStatusLabels[business.status]}
+              </span>
+            </button>
+          ))}
+        </div>
+      ) : null}
 
       <div
         style={{
@@ -960,7 +1003,7 @@ export function OwnerBusinessWorkspace({
               {savingBusinessId === activeBusiness.id ? 'Saving media...' : 'Save media changes'}
             </button>
             <span style={{ color: '#8e657b', fontSize: 12 }}>
-              Paste a URL or choose an image file from this computer.
+              Paste a URL, upload from this computer, or pick one from the gallery below.
             </span>
           </div>
 
@@ -1049,7 +1092,12 @@ export function OwnerBusinessWorkspace({
               </div>
             </div>
 
-            {activeBusiness.galleryImages.map((url, index) => (
+            {activeBusiness.galleryImages.map((url, index) => {
+              const normalizedUrl = url.trim();
+              const isHeroImage =
+                normalizedUrl.length > 0 && activeBusiness.heroImage.trim() === normalizedUrl;
+
+              return (
               <div key={`${activeBusiness.id}-gallery-${index}`} style={{ display: 'flex', gap: 10 }}>
                 <input
                   value={url}
@@ -1073,10 +1121,25 @@ export function OwnerBusinessWorkspace({
                 <button
                   type="button"
                   onClick={() => {
-                    updateActiveBusiness((business) => ({
-                      ...business,
-                      galleryImages: business.galleryImages.filter((_, itemIndex) => itemIndex !== index),
-                    }));
+                    selectGalleryImageAsHero(normalizedUrl);
+                  }}
+                  disabled={!normalizedUrl || isHeroImage}
+                  style={{
+                    border: isHeroImage ? '1px solid transparent' : '1px solid #f0cad8',
+                    background: isHeroImage ? '#ff5f98' : '#fff',
+                    color: isHeroImage ? '#fffafc' : '#8e657b',
+                    borderRadius: 14,
+                    padding: '10px 12px',
+                    cursor: !normalizedUrl || isHeroImage ? 'default' : 'pointer',
+                    fontWeight: 700,
+                  }}
+                >
+                  {isHeroImage ? 'Hero image' : 'Use as hero'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    removeGalleryImage(index);
                   }}
                   style={{
                     border: '1px solid #f0cad8',
@@ -1090,7 +1153,8 @@ export function OwnerBusinessWorkspace({
                   Remove
                 </button>
               </div>
-            ))}
+              );
+            })}
           </div>
 
           <div
@@ -1100,10 +1164,16 @@ export function OwnerBusinessWorkspace({
               gap: 10,
             }}
           >
-            {activeBusiness.galleryImages.filter(Boolean).slice(0, 6).map((url) => (
+            {activeBusiness.galleryImages.filter(Boolean).slice(0, 6).map((url, index) => {
+              const normalizedUrl = url.trim();
+              const isHeroImage =
+                normalizedUrl.length > 0 && activeBusiness.heroImage.trim() === normalizedUrl;
+
+              return (
               <div
-                key={url}
+                key={`${url}-${index}`}
                 style={{
+                  position: 'relative',
                   minHeight: 94,
                   borderRadius: 18,
                   backgroundImage: `linear-gradient(135deg, rgba(255,255,255,0.18), rgba(255,255,255,0.02)), url(${url})`,
@@ -1111,8 +1181,27 @@ export function OwnerBusinessWorkspace({
                   backgroundPosition: 'center',
                   border: '1px solid #f0cad8',
                 }}
-              />
-            ))}
+              >
+                {isHeroImage ? (
+                  <span
+                    style={{
+                      position: 'absolute',
+                      top: 8,
+                      left: 8,
+                      borderRadius: 999,
+                      padding: '4px 8px',
+                      background: 'rgba(255, 95, 152, 0.92)',
+                      color: '#fffafc',
+                      fontSize: 11,
+                      fontWeight: 800,
+                    }}
+                  >
+                    Hero
+                  </span>
+                ) : null}
+              </div>
+              );
+            })}
           </div>
         </article>
 

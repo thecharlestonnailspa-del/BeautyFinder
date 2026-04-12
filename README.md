@@ -25,7 +25,7 @@ Quick map:
 - Admin panel boots on `http://127.0.0.1:3002`.
 - Mobile app typechecks, exports a web build, and now includes salon detail pages, favorites, booking UI, and Google Maps previews.
 - Worker app starts in live or offline fallback mode and builds cleanly.
-- `npm run db:setup` now pushes the Prisma schema and upserts seeded sample data into Postgres.
+- `npm run db:setup` now runs `prisma migrate deploy` and only seeds sample data when `SEED_SAMPLE_DATA=true`.
 
 ## Requirements
 
@@ -58,9 +58,19 @@ npm run test:api:watch
 
 ## Environment
 
-Create a local `.env` if you want to override defaults.
+Use separate env files per environment. Do not reuse the local development env for production.
+
+- Local development: start from [`.env.example`](/Users/tienhoang/Beauty%20Finder/.env.example)
+- Staging: start from [`.env.staging.example`](/Users/tienhoang/Beauty%20Finder/.env.staging.example)
+- Production: start from [`.env.production.example`](/Users/tienhoang/Beauty%20Finder/.env.production.example)
+
+Local `.env.example` is for development defaults only. Production should use its own provider-managed secrets and variables.
+
+Local example:
 
 ```env
+APP_ENV=local
+SEED_SAMPLE_DATA=true
 PORT=3000
 HOST=127.0.0.1
 JWT_SECRET=replace-with-a-long-random-secret
@@ -71,8 +81,13 @@ RATE_LIMIT_WINDOW_MS=60000
 AUTH_RATE_LIMIT_MAX=10
 AUTH_RATE_LIMIT_WINDOW_MS=60000
 PAYMENT_TAX_RATE=0.08
+OWNER_MEDIA_STORAGE_DRIVER=local
+OWNER_MEDIA_UPLOAD_DIR=backend/api/uploads
+OWNER_MEDIA_STORAGE_PATH_PREFIX=
 NEXT_PUBLIC_API_URL=http://127.0.0.1:3000/api
+NEXT_PUBLIC_ENABLE_PREVIEW_MODE=true
 EXPO_PUBLIC_API_URL=http://127.0.0.1:3000/api
+EXPO_PUBLIC_ENABLE_DEMO_MODE=true
 EXPO_PUBLIC_GOOGLE_MAPS_EMBED_API_KEY=
 DATABASE_URL=postgresql://postgres.your-project-ref:YOUR_PASSWORD@aws-1-us-east-1.pooler.supabase.com:5432/postgres
 REDIS_URL=redis://localhost:6379
@@ -82,10 +97,19 @@ For Supabase, use the session-mode connection string on port `5432`. Replace `YO
 
 `JWT_SECRET` must be set to a real secret before the API starts. The server now rejects placeholder values such as `replace-me`.
 
-`npm run db:setup` now runs:
+Database commands:
 
-- `npm run db:push` to sync the Prisma schema to Postgres
-- `npm run db:seed` to upsert sample Beauty Finder data without wiping the whole database
+- `npm run db:setup` runs `prisma migrate deploy` and then seeds sample data only when `SEED_SAMPLE_DATA=true`
+- `npm run db:migrate:deploy` applies committed Prisma migrations without seeding
+- `npm run db:push:local` is only for local development when you explicitly want schema sync without migrations
+- `npm run db:seed:sample` seeds sample Beauty Finder data, but only when `SEED_SAMPLE_DATA=true` and `APP_ENV` is not `production`
+- `npm run db:migrate:resolve:baseline` marks the initial migration as already applied on an existing database that was previously managed by `db push`
+
+Environment flags:
+
+- `APP_ENV=local|staging|production` controls bootstrap behavior and seed safety
+- `SEED_SAMPLE_DATA=true` is allowed in local or staging only
+- `SEED_SAMPLE_DATA=false` is required for production
 
 Redis is still optional in local development. It is not required for startup today, and the health endpoint now reports whether the configured Redis instance is reachable.
 
@@ -99,6 +123,23 @@ The API also applies in-memory rate limits by default:
 `PAYMENT_TAX_RATE` controls the local checkout tax estimate used by the new payment receipt flow. If you do not set it, the API defaults to `0.08`.
 
 `EXPO_PUBLIC_GOOGLE_MAPS_EMBED_API_KEY` is optional. If you set it, the customer app uses the official Google Maps embed URL on web. If you leave it blank, the app falls back to a generic Google Maps iframe and still provides an "Open in Google Maps" action.
+
+`NEXT_PUBLIC_ENABLE_PREVIEW_MODE` and `EXPO_PUBLIC_ENABLE_DEMO_MODE` should stay `false` in staging and production. They are only meant for local preview and seeded-demo flows during development.
+
+Owner media uploads now support two storage modes:
+
+- `OWNER_MEDIA_STORAGE_DRIVER=local` for local development only
+- `OWNER_MEDIA_STORAGE_DRIVER=supabase` for staging and production
+
+When you use Supabase storage, configure:
+
+- `SUPABASE_URL`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `OWNER_MEDIA_STORAGE_BUCKET`
+- optional `OWNER_MEDIA_PUBLIC_BASE_URL`
+- optional `OWNER_MEDIA_STORAGE_PATH_PREFIX`
+
+Staging and production now reject `OWNER_MEDIA_STORAGE_DRIVER=local` at startup, so media is not written to ephemeral container storage in deployed environments.
 
 ## Run
 
@@ -304,7 +345,7 @@ Protected routes:
 
 ## Verified Flow
 
-The API contract and app flows are wired for Postgres. Once `DATABASE_URL` contains the real Supabase password, run:
+For local or staging, once `DATABASE_URL` contains the real Supabase password, run:
 
 1. `npm run db:setup`
 2. `npm run dev:api`
@@ -331,7 +372,11 @@ On the customer app, you can now:
 
 ## Deploy
 
-The repo is deployment-ready, but I cannot create final public URLs from this environment because that requires your hosting account credentials and provider access.
+Use [DEPLOYMENT.md](/Users/tienhoang/Beauty%20Finder/DEPLOYMENT.md) as the current deployment runbook.
+
+The repo is deployment-ready, but final public URLs, provider credentials, and production secrets still have to be created in your own hosting accounts.
+
+Provider-ready env templates now live in [deploy/env](/Users/tienhoang/Beauty%20Finder/deploy/env), and the deploy smoke script is available as `npm run smoke:deploy`.
 
 Recommended deployment split:
 
@@ -346,11 +391,32 @@ Create a new Render Web Service and choose Docker.
 
 - Dockerfile Path: `backend/api/Dockerfile`
 - Health Check Path: `/api/health`
+- Start Command: `node scripts/start-api-container.mjs`
+- Pre-Deploy Command: `npm run db:migrate:deploy`
 - Required environment variables:
 - `DATABASE_URL`
 - `JWT_SECRET`
+- `APP_ENV=production`
+- `SEED_SAMPLE_DATA=false`
 - `HOST=0.0.0.0`
 - `PORT=3000`
+- `CORS_ORIGINS=https://your-owner-domain,https://your-admin-domain,https://your-customer-domain`
+- `REDIS_URL=redis://your-redis-host:6379`
+
+Production notes:
+
+- Do not run `npm run db:setup` in production because it can trigger optional sample-seed logic.
+- Do not use the local `.env` values directly in production.
+- Run Prisma migrations through the provider pre-deploy step or a separate release job with `npm run db:migrate:deploy`.
+
+### Staging API
+
+For staging, use a separate database and a separate env set.
+
+- `APP_ENV=staging`
+- `SEED_SAMPLE_DATA=true` only if you want sample marketplace data in staging
+- Start command can remain `node scripts/start-api-container.mjs`
+- Bootstrap command can be `node scripts/bootstrap-db.mjs` when you intentionally want migrations plus optional sample seed in a staging deployment
 
 ### Owner Dashboard on Vercel
 
@@ -395,6 +461,8 @@ The customer app includes [frontend/mobile-app/vercel.json](/Users/tienhoang/Bea
 ## Remaining Gaps
 
 - Redis-backed queues/cache are not wired in yet.
-- `db:seed` is now idempotent, but it still inserts sample records intended for development.
+- CI/CD is not yet defined in this repo, so deploy promotion is still manual.
+- Sample seed is opt-in and blocked in production, but staging still needs an intentional `SEED_SAMPLE_DATA=true|false` decision.
+- Worker auth and scheduling are still not production-grade.
+- Expo native store release config is still missing.
 - Expo native simulator/device behavior still depends on the local Xcode/Android toolchain.
-- The worker is still a lightweight polling/demo implementation, not a queue-backed production processor.

@@ -56,6 +56,10 @@ export class UpdateOwnerStaffDto {
   @IsString()
   title?: string;
 
+  @IsOptional()
+  @IsString()
+  avatarUrl?: string;
+
   @Type(() => Boolean)
   @IsBoolean()
   isActive!: boolean;
@@ -96,6 +100,18 @@ export class UpdateOwnerBusinessDto {
   @IsOptional()
   @IsString()
   heroImage?: string;
+
+  @IsOptional()
+  @IsString()
+  businessLogo?: string;
+
+  @IsOptional()
+  @IsString()
+  businessBanner?: string;
+
+  @IsOptional()
+  @IsString()
+  ownerAvatar?: string;
 
   @IsOptional()
   @IsArray()

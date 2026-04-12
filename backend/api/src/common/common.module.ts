@@ -6,6 +6,7 @@ import { PrismaService } from './prisma.service';
 import { RateLimitGuard } from './rate-limit.guard';
 import { RedisService } from './redis.service';
 import { RolesGuard } from './roles.guard';
+import { OwnerMediaStorageService } from './owner-media-storage.service';
 
 @Global()
 @Module({
@@ -16,6 +17,7 @@ import { RolesGuard } from './roles.guard';
     JwtAuthGuard,
     RolesGuard,
     RedisService,
+    OwnerMediaStorageService,
     RateLimitGuard,
     {
       provide: APP_GUARD,
@@ -28,6 +30,7 @@ import { RolesGuard } from './roles.guard';
     JwtAuthGuard,
     RolesGuard,
     RedisService,
+    OwnerMediaStorageService,
     RateLimitGuard,
   ],
 })

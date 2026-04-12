@@ -1,14 +1,34 @@
 import type { NotificationRecord } from '@beauty-finder/types';
 
+function isStrictRuntime() {
+  const appEnv = process.env.APP_ENV?.trim().toLowerCase();
+
+  return (
+    appEnv === 'staging' ||
+    appEnv === 'production' ||
+    process.env.NODE_ENV === 'production'
+  );
+}
+
 const apiBaseUrl = process.env.API_URL ?? 'http://127.0.0.1:3000/api';
 const ownerUserId = process.env.WORKER_OWNER_ID ?? 'user-owner-1';
-const ownerEmail = process.env.WORKER_OWNER_EMAIL ?? 'lina@polishedstudio.app';
-const ownerPassword = process.env.WORKER_OWNER_PASSWORD ?? 'mock-password';
+const ownerEmail =
+  process.env.WORKER_OWNER_EMAIL ??
+  (isStrictRuntime() ? undefined : 'lina@polishedstudio.app');
+const ownerPassword =
+  process.env.WORKER_OWNER_PASSWORD ??
+  (isStrictRuntime() ? undefined : 'mock-password');
 let ownerToken = process.env.WORKER_OWNER_TOKEN?.trim();
 
 async function getOwnerToken() {
   if (ownerToken) {
     return ownerToken;
+  }
+
+  if (!ownerEmail || !ownerPassword) {
+    throw new Error(
+      'Worker requires explicit WORKER_OWNER_EMAIL and WORKER_OWNER_PASSWORD outside local development',
+    );
   }
 
   const response = await fetch(`${apiBaseUrl}/auth/login`, {

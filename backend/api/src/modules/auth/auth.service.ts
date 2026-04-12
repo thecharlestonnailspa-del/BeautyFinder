@@ -3,6 +3,7 @@ import { MarketplaceService } from '../../common/marketplace.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterBusinessOwnerDto } from './dto/register-business-owner.dto';
 import { RegisterCustomerDto } from './dto/register-customer.dto';
+import { RegisterTechnicianDto } from './dto/register-technician.dto';
 
 @Injectable()
 export class AuthService {
@@ -18,6 +19,10 @@ export class AuthService {
 
   registerBusinessOwner(input: RegisterBusinessOwnerDto) {
     return this.marketplace.registerBusinessOwner(input);
+  }
+
+  registerTechnician(input: RegisterTechnicianDto) {
+    return this.marketplace.registerTechnician(input);
   }
 
   getUser(userId: string) {

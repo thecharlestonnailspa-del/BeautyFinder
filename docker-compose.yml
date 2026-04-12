@@ -38,7 +38,9 @@ services:
       redis:
         condition: service_healthy
     environment:
+      APP_ENV: staging
       NODE_ENV: production
+      SEED_SAMPLE_DATA: 'true'
       HOST: 0.0.0.0
       PORT: 3000
       DATABASE_URL: postgresql://beauty_finder:beauty_finder@postgres:5432/beauty_finder?schema=public
@@ -50,10 +52,18 @@ services:
       RATE_LIMIT_WINDOW_MS: 60000
       AUTH_RATE_LIMIT_MAX: 10
       AUTH_RATE_LIMIT_WINDOW_MS: 60000
+      OWNER_MEDIA_STORAGE_DRIVER: local
+      OWNER_MEDIA_UPLOAD_DIR: /app/backend/api/uploads
     ports:
       - '3000:3000'
     volumes:
       - api-uploads:/app/backend/api/uploads
+    command:
+      [
+        'sh',
+        '-c',
+        'node scripts/bootstrap-db.mjs && node scripts/start-api-container.mjs',
+      ]
     healthcheck:
       test:
         [

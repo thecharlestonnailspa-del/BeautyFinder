@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { clearAdminSessionCookie } from '../lib/admin-api';
+import { clearAdminSession } from '../lib/admin-api';
 
 export function AdminSessionControls({ adminName }: { adminName: string }) {
   const router = useRouter();
@@ -24,8 +24,10 @@ export function AdminSessionControls({ adminName }: { adminName: string }) {
       <button
         type="button"
         onClick={() => {
-          clearAdminSessionCookie();
-          router.replace('/auth');
+          void clearAdminSession().finally(() => {
+            router.replace('/auth');
+            router.refresh();
+          });
         }}
         style={{
           border: '1px solid #f0cad8',

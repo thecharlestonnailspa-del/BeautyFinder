@@ -54,4 +54,16 @@ export class RegisterBusinessOwnerDto {
   @IsOptional()
   @IsEmail()
   businessEmail?: string;
+
+  @IsString()
+  @MinLength(4)
+  salonLicenseNumber!: string;
+
+  @IsString()
+  @MinLength(4)
+  businessLicenseNumber!: string;
+
+  @IsString()
+  @MinLength(4)
+  einNumber!: string;
 }

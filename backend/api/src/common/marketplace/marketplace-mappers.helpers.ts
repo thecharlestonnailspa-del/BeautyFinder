@@ -11,6 +11,12 @@ import type {
   OwnerBusinessProfile,
   OwnerServiceSummary,
   PaymentRecord,
+  PrivateTechnicianAdRecord,
+  PrivateTechnicianProfileRecord,
+  PrivateTechnicianProfileStatus,
+  PrivateTechnicianAdStatus,
+  PrivateTechnicianServiceRecord,
+  ProfessionalVerificationStatus,
   ReviewModerationStatus,
   StaffSummary,
 } from '@beauty-finder/types';
@@ -19,8 +25,11 @@ import {
   BusinessStatus,
   PaymentMethod as PrismaPaymentMethod,
   PaymentStatus as PrismaPaymentStatus,
+  PrivateTechnicianAdStatus as PrismaPrivateTechnicianAdStatus,
+  PrivateTechnicianProfileStatus as PrismaPrivateTechnicianProfileStatus,
   Prisma,
   ReviewStatus,
+  VerificationStatus as PrismaVerificationStatus,
 } from '@prisma/client';
 import { randomUUID } from 'crypto';
 import type {
@@ -28,6 +37,7 @@ import type {
   BusinessWithOwner,
   BusinessWithRelations,
   PaymentWithRelations,
+  PrivateTechnicianProfileWithRelations,
   ReviewWithRelations,
 } from './marketplace.types';
 
@@ -185,9 +195,112 @@ export function toStaffSummary(
   return {
     id: staff.id,
     businessId: staff.businessId,
+    userId: staff.userId ?? undefined,
     name: staff.name,
     title: staff.title ?? undefined,
+    avatarUrl: staff.avatarUrl ?? undefined,
     isActive: staff.isActive,
+  };
+}
+
+export function fromVerificationStatus(
+  status: PrismaVerificationStatus,
+): ProfessionalVerificationStatus {
+  return status.toLowerCase() as ProfessionalVerificationStatus;
+}
+
+export function fromPrivateTechnicianProfileStatus(
+  status: PrismaPrivateTechnicianProfileStatus,
+): PrivateTechnicianProfileStatus {
+  return status.toLowerCase() as PrivateTechnicianProfileStatus;
+}
+
+export function toPrivateTechnicianProfileStatus(
+  status: PrivateTechnicianProfileStatus,
+): PrismaPrivateTechnicianProfileStatus {
+  return status.toUpperCase() as PrismaPrivateTechnicianProfileStatus;
+}
+
+export function fromPrivateTechnicianAdStatus(
+  status: PrismaPrivateTechnicianAdStatus,
+): PrivateTechnicianAdStatus {
+  return status.toLowerCase() as PrivateTechnicianAdStatus;
+}
+
+export function toPrivateTechnicianAdStatus(
+  status: PrivateTechnicianAdStatus,
+): PrismaPrivateTechnicianAdStatus {
+  return status.toUpperCase() as PrismaPrivateTechnicianAdStatus;
+}
+
+export function toPrivateTechnicianServiceRecord(
+  service: PrivateTechnicianProfileWithRelations['services'][number],
+): PrivateTechnicianServiceRecord {
+  return {
+    id: service.id,
+    userId: service.profileUserId,
+    name: service.name,
+    description: service.description ?? undefined,
+    durationMinutes: service.durationMinutes,
+    price: toNumber(service.price),
+    isActive: service.isActive,
+  };
+}
+
+export function toPrivateTechnicianAdRecord(
+  ad: PrivateTechnicianProfileWithRelations['ads'][number],
+): PrivateTechnicianAdRecord {
+  return {
+    id: ad.id,
+    userId: ad.profileUserId,
+    campaignName: ad.campaignName,
+    placement: ad.placement.toLowerCase() as PrivateTechnicianAdRecord['placement'],
+    headline: ad.headline,
+    description: ad.description ?? undefined,
+    destinationUrl: ad.destinationUrl ?? undefined,
+    budget: toNumber(ad.budgetAmount),
+    currency: ad.currency,
+    status: fromPrivateTechnicianAdStatus(ad.status),
+    startsAt: ad.startsAt?.toISOString(),
+    endsAt: ad.endsAt?.toISOString(),
+    createdAt: ad.createdAt.toISOString(),
+    updatedAt: ad.updatedAt.toISOString(),
+  };
+}
+
+export function toPrivateTechnicianProfileRecord(
+  profile: PrivateTechnicianProfileWithRelations,
+): PrivateTechnicianProfileRecord {
+  return {
+    userId: profile.userId,
+    accountType: 'private_technician',
+    verificationStatus: fromVerificationStatus(
+      profile.user.professionalRegistration?.verificationStatus ??
+        PrismaVerificationStatus.PENDING_REVIEW,
+    ),
+    status: fromPrivateTechnicianProfileStatus(profile.status),
+    name: profile.user.fullName,
+    email: profile.user.email,
+    phone: profile.user.phone ?? undefined,
+    avatarUrl: profile.user.avatarUrl ?? undefined,
+    displayName: profile.displayName,
+    category: profile.category.toLowerCase() as PrivateTechnicianProfileRecord['category'],
+    headline: profile.headline ?? undefined,
+    bio: profile.bio ?? undefined,
+    city: profile.city ?? undefined,
+    state: profile.state ?? undefined,
+    postalCode: profile.postalCode ?? undefined,
+    heroImage: profile.heroImage ?? undefined,
+    featuredOnHomepage: profile.featuredOnHomepage,
+    homepageRank: profile.homepageRank,
+    services: profile.services
+      .map((service) => toPrivateTechnicianServiceRecord(service))
+      .sort((left, right) => Number(right.isActive) - Number(left.isActive)),
+    ads: profile.ads
+      .map((ad) => toPrivateTechnicianAdRecord(ad))
+      .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt)),
+    createdAt: profile.createdAt.toISOString(),
+    updatedAt: profile.updatedAt.toISOString(),
   };
 }
 
@@ -249,6 +362,9 @@ export function toOwnerBusinessProfile(
     rating: business.rating,
     reviewCount: business.reviewCount,
     heroImage: business.heroImage ?? business.images[0]?.url ?? '',
+    businessLogo: business.businessLogo ?? undefined,
+    businessBanner: business.businessBanner ?? undefined,
+    ownerAvatar: business.ownerAvatarUrl ?? undefined,
     description: business.description ?? '',
     services: business.services
       .map((service) => toOwnerServiceSummary(service))

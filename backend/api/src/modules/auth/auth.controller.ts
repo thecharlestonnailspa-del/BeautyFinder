@@ -13,6 +13,7 @@ import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterBusinessOwnerDto } from './dto/register-business-owner.dto';
 import { RegisterCustomerDto } from './dto/register-customer.dto';
+import { RegisterTechnicianDto } from './dto/register-technician.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -37,6 +38,11 @@ export class AuthController {
   @Post('register/business')
   registerBusiness(@Body() input: RegisterBusinessOwnerDto) {
     return this.authService.registerBusinessOwner(input);
+  }
+
+  @Post('register/technician')
+  registerTechnician(@Body() input: RegisterTechnicianDto) {
+    return this.authService.registerTechnician(input);
   }
 
   @Get('me')

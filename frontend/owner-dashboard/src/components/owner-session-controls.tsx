@@ -1,7 +1,6 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { clearOwnerSessionCookie } from '../lib/owner-api';
 
 export function OwnerSessionControls({ ownerName }: { ownerName: string }) {
   const router = useRouter();
@@ -24,8 +23,14 @@ export function OwnerSessionControls({ ownerName }: { ownerName: string }) {
       <button
         type="button"
         onClick={() => {
-          clearOwnerSessionCookie();
-          router.replace('/auth?mode=login');
+          void (async () => {
+            await fetch('/api/auth/logout', {
+              method: 'POST',
+            });
+          })().finally(() => {
+            router.replace('/auth?mode=login');
+            router.refresh();
+          });
         }}
         style={{
           border: '1px solid #f0cad8',

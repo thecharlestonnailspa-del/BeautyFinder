@@ -1,0 +1,48 @@
+services:
+  - type: web
+    name: beauty-finder-api
+    runtime: docker
+    plan: starter
+    autoDeploy: false
+    dockerContext: .
+    dockerfilePath: ./backend/api/Dockerfile
+    healthCheckPath: /api/health
+    envVars:
+      - key: APP_ENV
+        value: staging
+      - key: SEED_SAMPLE_DATA
+        value: 'false'
+      - key: HOST
+        value: 0.0.0.0
+      - key: PORT
+        value: '3000'
+      - key: RATE_LIMIT_MAX
+        value: '120'
+      - key: RATE_LIMIT_WINDOW_MS
+        value: '60000'
+      - key: AUTH_RATE_LIMIT_MAX
+        value: '10'
+      - key: AUTH_RATE_LIMIT_WINDOW_MS
+        value: '60000'
+      - key: PAYMENT_TAX_RATE
+        value: '0.08'
+      - key: OWNER_MEDIA_STORAGE_DRIVER
+        value: supabase
+      - key: OWNER_MEDIA_STORAGE_BUCKET
+        value: owner-media
+      - key: OWNER_MEDIA_STORAGE_PATH_PREFIX
+        value: staging
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: OWNER_MEDIA_PUBLIC_BASE_URL
+        sync: false

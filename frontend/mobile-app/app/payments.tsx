@@ -20,6 +20,7 @@ import {
   fallbackPayments,
   fetchJson,
   getAuthHeaders,
+  isCustomerDemoModeEnabled,
   getStoredSession,
 } from '../src/lib/customer-experience';
 
@@ -80,6 +81,7 @@ function LineItem({
 
 export default function PaymentsScreen() {
   const { refresh } = useLocalSearchParams<{ refresh?: string }>();
+  const demoModeEnabled = isCustomerDemoModeEnabled();
   const [session, setSession] = useState<SessionPayload | null>(() =>
     getStoredSession(),
   );
@@ -251,8 +253,9 @@ export default function PaymentsScreen() {
         <View style={styles.emptyCard}>
           <Text style={styles.emptyTitle}>Customer login required</Text>
           <Text style={styles.emptyBody}>
-            Use the seeded customer account to see payment history and receipt
-            details.
+            {demoModeEnabled
+              ? 'Use the local seeded customer account to see payment history and receipt details.'
+              : 'Sign in with your customer account to see payment history and receipt details.'}
           </Text>
           <Link href="/auth?mode=login" asChild>
             <Pressable

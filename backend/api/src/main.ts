@@ -1,4 +1,3 @@
-import { join } from 'node:path';
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
@@ -9,22 +8,26 @@ import {
   isCorsOriginAllowed,
   rateLimitExposedHeaders,
 } from './common/cors.config';
+import { getOwnerMediaStorageConfig } from './common/owner-media-storage.config';
+import { PrismaExceptionFilter } from './common/prisma-exception.filter';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
   getJwtSecret();
+  const ownerMediaStorage = getOwnerMediaStorageConfig();
 
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
   const port = process.env.PORT ? Number(process.env.PORT) : 3000;
   const host = process.env.HOST ?? '127.0.0.1';
   const allowedOrigins = getAllowedCorsOrigins();
-  const uploadsDirectory = join(__dirname, '../uploads');
 
   app.setGlobalPrefix('api');
   app.set('query parser', 'extended');
   app.use(json({ limit: '8mb' }));
   app.use(urlencoded({ extended: true, limit: '8mb' }));
-  app.useStaticAssets(uploadsDirectory, { prefix: '/uploads/' });
+  if (ownerMediaStorage.driver === 'local') {
+    app.useStaticAssets(ownerMediaStorage.uploadsDirectory, { prefix: '/uploads/' });
+  }
   app.enableCors({
     origin(origin, callback) {
       if (isCorsOriginAllowed(origin, allowedOrigins)) {
@@ -47,6 +50,7 @@ async function bootstrap() {
       forbidNonWhitelisted: true,
     }),
   );
+  app.useGlobalFilters(new PrismaExceptionFilter());
 
   await app.listen(port, host);
 }

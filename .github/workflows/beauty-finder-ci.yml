@@ -1,0 +1,78 @@
+name: Beauty Finder CI
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+
+concurrency:
+  group: beauty-finder-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  APP_ENV: local
+  JWT_SECRET: beauty-finder-ci-jwt-secret
+  DATABASE_URL: postgresql://beauty_finder:beauty_finder@127.0.0.1:5432/beauty_finder?schema=public
+  REDIS_URL: redis://127.0.0.1:6379
+  NEXT_PUBLIC_API_URL: http://127.0.0.1:3000/api
+  NEXT_PUBLIC_ENABLE_PREVIEW_MODE: 'false'
+  EXPO_PUBLIC_API_URL: http://127.0.0.1:3000/api
+  EXPO_PUBLIC_ENABLE_DEMO_MODE: 'false'
+  EXPO_PUBLIC_GOOGLE_MAPS_EMBED_API_KEY: ''
+
+jobs:
+  node-validate:
+    name: Node Validate
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Build
+        run: npm run build
+
+      - name: Test
+        run: npm run test
+
+  python-api-validate:
+    name: Python API Validate
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Upgrade pip
+        run: python -m pip install --upgrade pip
+
+      - name: Install Python API dependencies
+        run: python -m pip install -e "backend/api-py[dev]"
+
+      - name: Compile Python API
+        run: python -m compileall backend/api-py/app
+
+      - name: Test Python API
+        run: PYTHONPATH=backend/api-py python -m unittest discover -s backend/api-py/tests

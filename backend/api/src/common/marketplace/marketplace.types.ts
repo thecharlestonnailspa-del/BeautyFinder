@@ -21,3 +21,11 @@ export type AdminActionWithAdmin = Prisma.AdminActionGetPayload<{
 export type PaymentWithRelations = Prisma.PaymentGetPayload<{
   include: { appointment: { include: { service: true } } };
 }>;
+
+export type PrivateTechnicianProfileWithRelations = Prisma.PrivateTechnicianProfileGetPayload<{
+  include: {
+    user: { include: { professionalRegistration: true } };
+    services: true;
+    ads: true;
+  };
+}>;

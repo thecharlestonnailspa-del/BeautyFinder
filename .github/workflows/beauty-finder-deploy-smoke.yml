@@ -1,0 +1,45 @@
+name: Beauty Finder Deploy Smoke
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Target environment to validate
+        required: true
+        type: choice
+        options:
+          - staging
+          - production
+        default: staging
+
+concurrency:
+  group: beauty-finder-deploy-smoke-${{ inputs.target }}
+  cancel-in-progress: true
+
+jobs:
+  deploy-smoke:
+    name: Deploy Smoke (${{ inputs.target }})
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.target }}
+    env:
+      DEPLOY_SMOKE_API_URL: ${{ secrets.DEPLOY_SMOKE_API_URL }}
+      DEPLOY_SMOKE_OWNER_URL: ${{ secrets.DEPLOY_SMOKE_OWNER_URL }}
+      DEPLOY_SMOKE_ADMIN_URL: ${{ secrets.DEPLOY_SMOKE_ADMIN_URL }}
+      DEPLOY_SMOKE_CUSTOMER_URL: ${{ secrets.DEPLOY_SMOKE_CUSTOMER_URL }}
+      DEPLOY_SMOKE_OWNER_EMAIL: ${{ secrets.DEPLOY_SMOKE_OWNER_EMAIL }}
+      DEPLOY_SMOKE_OWNER_PASSWORD: ${{ secrets.DEPLOY_SMOKE_OWNER_PASSWORD }}
+      DEPLOY_SMOKE_ADMIN_EMAIL: ${{ secrets.DEPLOY_SMOKE_ADMIN_EMAIL }}
+      DEPLOY_SMOKE_ADMIN_PASSWORD: ${{ secrets.DEPLOY_SMOKE_ADMIN_PASSWORD }}
+      DEPLOY_SMOKE_ACCESS_ACCOUNT_ID: ${{ secrets.DEPLOY_SMOKE_ACCESS_ACCOUNT_ID }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Run deploy smoke checks
+        run: node scripts/smoke-deploy.mjs

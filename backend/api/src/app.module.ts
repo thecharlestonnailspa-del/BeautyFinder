@@ -16,7 +16,9 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
 import { PaymentsModule } from './modules/payments/payments.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { AuditModule } from './modules/audit/audit.module';
+import { CustomerInsightsModule } from './modules/customer-insights/customer-insights.module';
 import { SearchModule } from './modules/search/search.module';
+import { TechniciansModule } from './modules/technicians/technicians.module';
 
 @Module({
   imports: [
@@ -37,7 +39,9 @@ import { SearchModule } from './modules/search/search.module';
     PaymentsModule,
     AdminModule,
     AuditModule,
+    CustomerInsightsModule,
     SearchModule,
+    TechniciansModule,
   ],
 })
 export class AppModule {}

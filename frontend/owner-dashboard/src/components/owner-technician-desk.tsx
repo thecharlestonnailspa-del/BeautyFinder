@@ -30,8 +30,8 @@ function createDraftTechnician(business: OwnerBusinessProfile): OwnerTechnicianP
     businessName: business.name,
     businessCategory: business.category,
     businessStatus: business.status,
-    name: 'New technician',
-    title: 'Beauty technician',
+    name: 'New team member',
+    title: 'Salon specialist',
     avatarUrl: '',
     isActive: true,
   };
@@ -61,6 +61,7 @@ function buildTechnicianPayload(
   return technicians
     .map((technician) => ({
       id: isDraftTechnician(technician.id) ? undefined : technician.id,
+      userId: technician.userId,
       name: technician.name.trim(),
       title: technician.title?.trim() || undefined,
       avatarUrl: technician.avatarUrl?.trim() || undefined,
@@ -71,21 +72,20 @@ function buildTechnicianPayload(
 
 export function OwnerTechnicianDesk({
   initialBusinesses,
-  authToken,
   previewMode = false,
 }: {
   initialBusinesses: OwnerBusinessProfile[];
-  authToken?: string;
   previewMode?: boolean;
 }) {
   const [selectedBusinessId, setSelectedBusinessId] = useState(initialBusinesses[0]?.id ?? '');
+  const hasMultipleBusinesses = initialBusinesses.length > 1;
   const [techniciansByBusiness, setTechniciansByBusiness] = useState(
     buildInitialTechnicianState(initialBusinesses),
   );
   const [statusMessage, setStatusMessage] = useState(
     previewMode
-      ? 'Preview mode is active. Technician updates save locally on this device.'
-      : 'Technician roster, avatars, and availability are managed separately from salon owner business settings.',
+      ? 'Preview mode is active. Team updates save locally on this device.'
+      : 'Team roster, avatars, and availability are managed separately from the salon profile.',
   );
   const [savingBusinessId, setSavingBusinessId] = useState<string | null>(null);
   const [loadingBusinessId, setLoadingBusinessId] = useState<string | null>(null);
@@ -108,7 +108,7 @@ export function OwnerTechnicianDesk({
       const parsed = JSON.parse(stored) as Record<string, OwnerTechnicianProfile[]>;
       if (parsed && typeof parsed === 'object') {
         setTechniciansByBusiness((current) => ({ ...current, ...parsed }));
-        setStatusMessage('Loaded saved technician preview changes from this device.');
+        setStatusMessage('Loaded saved team preview changes from this device.');
       }
     } catch {
       window.localStorage.removeItem(previewOwnerTechniciansStorageKey);
@@ -127,7 +127,7 @@ export function OwnerTechnicianDesk({
   }, [previewMode, techniciansByBusiness]);
 
   useEffect(() => {
-    if (previewMode || !authToken || !selectedBusinessId) {
+    if (previewMode || !selectedBusinessId) {
       return;
     }
 
@@ -135,7 +135,7 @@ export function OwnerTechnicianDesk({
     setLoadingBusinessId(selectedBusinessId);
 
     void (async () => {
-      const technicians = await fetchOwnerTechnicians(selectedBusinessId, authToken);
+      const technicians = await fetchOwnerTechnicians(selectedBusinessId);
       if (cancelled) {
         return;
       }
@@ -153,9 +153,9 @@ export function OwnerTechnicianDesk({
     return () => {
       cancelled = true;
     };
-  }, [authToken, previewMode, selectedBusinessId]);
+  }, [previewMode, selectedBusinessId]);
 
-  const activeBusiness =
+    const activeBusiness =
     initialBusinesses.find((business) => business.id === selectedBusinessId) ?? initialBusinesses[0];
 
   if (!activeBusiness) {
@@ -194,10 +194,10 @@ export function OwnerTechnicianDesk({
 
     setUploadingTechnicianId(technicianId);
     const technician = activeTechnicians.find((item) => item.id === technicianId);
-    const technicianName = technician?.name || 'technician';
+    const technicianName = technician?.name || 'team member';
     setStatusMessage(`Uploading avatar for ${technicianName}...`);
 
-    const uploadedUrl = await uploadOwnerBusinessImage(activeBusiness.id, file, authToken);
+    const uploadedUrl = await uploadOwnerBusinessImage(activeBusiness.id, file);
 
     if (!uploadedUrl) {
       setStatusMessage(`Could not upload the avatar for ${technicianName}.`);
@@ -220,16 +220,9 @@ export function OwnerTechnicianDesk({
       return;
     }
 
-    if (!authToken) {
-      setStatusMessage(`${technicianName} avatar was uploaded. Sign in again to save the technician roster.`);
-      setUploadingTechnicianId(null);
-      return;
-    }
-
     const updated = await saveOwnerTechnicianRoster(
       activeBusiness.id,
       buildTechnicianPayload(nextTechnicians),
-      authToken,
     );
 
     if (updated) {
@@ -237,9 +230,9 @@ export function OwnerTechnicianDesk({
         ...current,
         [activeBusiness.id]: updated,
       }));
-      setStatusMessage(`${technicianName} avatar was uploaded and technician roster was saved.`);
+      setStatusMessage(`${technicianName} avatar was uploaded and the team roster was saved.`);
     } else {
-      setStatusMessage(`${technicianName} avatar was uploaded, but the technician roster was not saved.`);
+      setStatusMessage(`${technicianName} avatar was uploaded, but the team roster was not saved.`);
     }
 
     setUploadingTechnicianId(null);
@@ -254,30 +247,25 @@ export function OwnerTechnicianDesk({
 
     if (previewMode) {
       setStatusMessage(
-        `${activeBusiness.name} technician roster was saved locally in preview mode.`,
+        `${activeBusiness.name} team roster was saved locally in preview mode.`,
       );
       return;
     }
 
-    if (!authToken) {
-      setStatusMessage('Owner access token is missing, so technician updates cannot be saved.');
-      return;
-    }
-
-    setStatusMessage(`Saving technician roster for ${activeBusiness.name}...`);
+    setStatusMessage(`Saving team roster for ${activeBusiness.name}...`);
     setSavingBusinessId(activeBusiness.id);
 
     startTransition(() => {
       void (async () => {
-        const updated = await saveOwnerTechnicianRoster(activeBusiness.id, nextPayload, authToken);
+        const updated = await saveOwnerTechnicianRoster(activeBusiness.id, nextPayload);
         if (updated) {
           setTechniciansByBusiness((current) => ({
             ...current,
             [activeBusiness.id]: updated,
           }));
-          setStatusMessage(`${activeBusiness.name} technician roster was saved separately.`);
+          setStatusMessage(`${activeBusiness.name} team roster was saved separately.`);
         } else {
-          setStatusMessage(`Could not save technician roster for ${activeBusiness.name}.`);
+          setStatusMessage(`Could not save team roster for ${activeBusiness.name}.`);
         }
         setSavingBusinessId(null);
       })();
@@ -334,14 +322,14 @@ export function OwnerTechnicianDesk({
                 textTransform: 'uppercase',
               }}
             >
-              Technician desk
+              Team desk
             </p>
             <h2 style={{ margin: 0, fontSize: 32, color: '#24171b', lineHeight: 1.12 }}>
-              Manage private technicians separately from the salon owner profile
+              Manage your salon team separately from the salon profile
             </h2>
             <p style={{ margin: 0, color: '#6f5961', lineHeight: 1.7 }}>
-              Availability and technician identity stay in their own roster, instead of being mixed
-              into the salon owner business workspace.
+              Availability and staff details stay in their own roster, instead of being mixed into
+              the salon settings workspace.
             </p>
           </div>
         </div>
@@ -363,7 +351,7 @@ export function OwnerTechnicianDesk({
             minWidth: 190,
           }}
         >
-          {savingBusinessId === activeBusiness.id ? 'Saving technicians...' : 'Save technician roster'}
+          {savingBusinessId === activeBusiness.id ? 'Saving team...' : 'Save team roster'}
         </button>
       </div>
 
@@ -378,47 +366,49 @@ export function OwnerTechnicianDesk({
         }}
       >
         {loadingBusinessId === activeBusiness.id
-          ? `Refreshing technician roster for ${activeBusiness.name}...`
+          ? `Refreshing team roster for ${activeBusiness.name}...`
           : statusMessage}
       </div>
 
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
-        {initialBusinesses.map((business) => (
-          <button
-            key={business.id}
-            type="button"
-            onClick={() => {
-              setSelectedBusinessId(business.id);
-              setStatusMessage(`Managing technicians for ${business.name}.`);
-            }}
-            style={{
-              border:
-                business.id === activeBusiness.id
-                  ? '2px solid #6f404a'
-                  : '1px solid rgba(113, 70, 90, 0.14)',
-              background:
-                business.id === activeBusiness.id
-                  ? 'linear-gradient(135deg, #f7ede8, #fff9f6)'
-                  : '#ffffff',
-              borderRadius: 22,
-              padding: '14px 16px',
-              cursor: 'pointer',
-              display: 'grid',
-              gap: 4,
-              minWidth: 180,
-              textAlign: 'left',
-            }}
-          >
-            <span style={{ fontWeight: 800, color: '#24171b', fontSize: 15 }}>{business.name}</span>
-            <span style={{ color: '#756067', fontSize: 12 }}>
-              {business.city}, {business.state}
-            </span>
-            <span style={{ color: '#8f6a1f', fontSize: 12, fontWeight: 700 }}>
-              Technician roster
-            </span>
-          </button>
-        ))}
-      </div>
+      {hasMultipleBusinesses ? (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
+          {initialBusinesses.map((business) => (
+            <button
+              key={business.id}
+              type="button"
+              onClick={() => {
+                setSelectedBusinessId(business.id);
+                setStatusMessage(`Managing the team for ${business.name}.`);
+              }}
+              style={{
+                border:
+                  business.id === activeBusiness.id
+                    ? '2px solid #6f404a'
+                    : '1px solid rgba(113, 70, 90, 0.14)',
+                background:
+                  business.id === activeBusiness.id
+                    ? 'linear-gradient(135deg, #f7ede8, #fff9f6)'
+                    : '#ffffff',
+                borderRadius: 22,
+                padding: '14px 16px',
+                cursor: 'pointer',
+                display: 'grid',
+                gap: 4,
+                minWidth: 180,
+                textAlign: 'left',
+              }}
+            >
+              <span style={{ fontWeight: 800, color: '#24171b', fontSize: 15 }}>{business.name}</span>
+              <span style={{ color: '#756067', fontSize: 12 }}>
+                {business.city}, {business.state}
+              </span>
+              <span style={{ color: '#8f6a1f', fontSize: 12, fontWeight: 700 }}>
+                Team roster
+              </span>
+            </button>
+          ))}
+        </div>
+      ) : null}
 
       <div
         style={{
@@ -428,9 +418,9 @@ export function OwnerTechnicianDesk({
         }}
       >
         {[
-          { icon: 'team' as const, label: 'Total technicians', value: String(activeTechnicians.length) },
+          { icon: 'team' as const, label: 'Total team members', value: String(activeTechnicians.length) },
           { icon: 'review' as const, label: 'Available now', value: String(availableTechnicians) },
-          { icon: 'services' as const, label: 'Specialty titles', value: String(specialtyCount) },
+          { icon: 'services' as const, label: 'Role titles', value: String(specialtyCount) },
         ].map((item) => (
           <article
             key={item.label}
@@ -487,10 +477,10 @@ export function OwnerTechnicianDesk({
                   textTransform: 'uppercase',
                 }}
               >
-                Private technicians
+                Salon team
               </p>
               <h3 style={{ margin: '8px 0 0', fontSize: 24, color: '#24171b' }}>
-                {activeBusiness.name} technician roster
+                {activeBusiness.name} team roster
               </h3>
             </div>
           </div>
@@ -509,8 +499,8 @@ export function OwnerTechnicianDesk({
               fontWeight: 800,
               cursor: 'pointer',
             }}
-          >
-            Add technician
+            >
+            Add team member
           </button>
         </div>
 
@@ -561,7 +551,7 @@ export function OwnerTechnicianDesk({
                       {technician.name}
                     </div>
                     <div style={{ color: '#756067', fontSize: 13 }}>
-                      {technician.title?.trim() || 'Technician profile'}
+                      {technician.title?.trim() || 'Team member profile'}
                     </div>
                   </div>
                 </div>
@@ -588,7 +578,7 @@ export function OwnerTechnicianDesk({
               </div>
 
               <label style={{ display: 'grid', gap: 6, color: '#6d5060', fontWeight: 700 }}>
-                Technician avatar URL
+                Team member avatar URL
                 <input
                   value={technician.avatarUrl ?? ''}
                   placeholder="https://..."
@@ -693,7 +683,7 @@ export function OwnerTechnicianDesk({
                     cursor: 'pointer',
                   }}
                 >
-                  {isDraftTechnician(technician.id) ? 'Drop draft' : 'Remove technician'}
+                  {isDraftTechnician(technician.id) ? 'Drop draft' : 'Remove team member'}
                 </button>
               </div>
             </div>
@@ -709,8 +699,8 @@ export function OwnerTechnicianDesk({
               lineHeight: 1.7,
             }}
           >
-            No technicians have been added for this business yet. Add the roster here so it stays
-            separate from salon owner business settings.
+            No team members have been added for this salon yet. Add the roster here so it stays
+            separate from the salon profile settings.
           </div>
         )}
       </div>

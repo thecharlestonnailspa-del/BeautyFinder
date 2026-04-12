@@ -19,6 +19,7 @@ import type {
   ReviewRecord,
 } from '@beauty-finder/types';
 import { BeautyMotion } from '../../src/components/beauty-motion';
+import { BusinessLogoPanel } from '../../src/components/business-logo-panel';
 import { BusinessMapCard } from '../../src/components/business-map-card';
 import {
   fallbackFavoriteIds,
@@ -673,7 +674,7 @@ export default function SalonDetailScreen() {
           </Pressable>
         </View>
 
-        <Text style={styles.heroTitle}>{business.name}</Text>
+        <BusinessLogoPanel business={business} size="detail" />
         <Text style={styles.heroMeta}>
           {business.rating} / 5 · {business.reviewCount} reviews
         </Text>
@@ -1082,15 +1083,15 @@ const styles = StyleSheet.create({
     paddingTop: 18,
     paddingBottom: 36,
     gap: 18,
-    backgroundColor: '#ffeef5',
+    backgroundColor: '#f6f1ea',
   },
   heroCard: {
-    backgroundColor: '#fff9fc',
+    backgroundColor: '#fffdf9',
     borderRadius: 30,
     padding: 22,
     borderWidth: 2,
-    borderColor: '#f7bfd1',
-    gap: 10,
+    borderColor: '#eadfd5',
+    gap: 12,
   },
   heroRow: {
     flexDirection: 'row',
@@ -1100,13 +1101,13 @@ const styles = StyleSheet.create({
   },
   badge: {
     alignSelf: 'flex-start',
-    backgroundColor: '#ffd9e7',
+    backgroundColor: '#efe7de',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 999,
   },
   badgeText: {
-    color: '#c22767',
+    color: '#6b5245',
     fontSize: 11,
     fontWeight: '800',
     textTransform: 'uppercase',
@@ -1117,17 +1118,17 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: '#f3c3d6',
+    borderColor: '#dfd4ca',
   },
   favoriteButtonActive: {
-    backgroundColor: '#ffdeeb',
-    borderColor: '#ff6b9d',
+    backgroundColor: '#efe7de',
+    borderColor: '#846857',
   },
   favoriteButtonPressed: {
     opacity: 0.9,
   },
   favoriteButtonText: {
-    color: '#7c1f48',
+    color: '#4b352b',
     fontSize: 12,
     fontWeight: '800',
   },
@@ -1138,22 +1139,22 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   heroMeta: {
-    color: '#d6336c',
+    color: '#8b5a45',
     fontSize: 13,
     fontWeight: '800',
   },
   heroAddress: {
-    color: '#7b5c75',
+    color: '#685c54',
     fontSize: 14,
     lineHeight: 21,
   },
   heroBody: {
-    color: '#654f67',
+    color: '#534943',
     fontSize: 15,
     lineHeight: 22,
   },
   statusText: {
-    color: '#915772',
+    color: '#756860',
     fontSize: 12,
     fontWeight: '700',
   },

@@ -18,7 +18,10 @@ FROM deps AS build
 
 COPY . .
 
-RUN npm run db:generate && npm run build --workspace @beauty-finder/api
+RUN npm run db:generate \
+  && npm run build --workspace @beauty-finder/types \
+  && npm run build --workspace @beauty-finder/validation \
+  && npm run build --workspace @beauty-finder/api
 
 FROM node:20-alpine AS runner
 

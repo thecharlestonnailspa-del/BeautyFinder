@@ -12,13 +12,13 @@ COPY packages/api-sdk/package.json packages/api-sdk/package.json
 COPY packages/types/package.json packages/types/package.json
 COPY packages/validation/package.json packages/validation/package.json
 
-RUN npm ci
+RUN npm ci --ignore-scripts
 
 FROM deps AS build
 
 COPY . .
 
-RUN npm run build --workspace @beauty-finder/api
+RUN npm run db:generate && npm run build --workspace @beauty-finder/api
 
 FROM node:20-alpine AS runner
 

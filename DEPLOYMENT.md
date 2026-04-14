@@ -6,6 +6,10 @@ Execution checklist: [deploy/LAUNCH_CHECKLIST.md](/Users/tienhoang/Beauty%20Find
 
 Status summary: [deploy/STATUS_REPORT.md](/Users/tienhoang/Beauty%20Finder/deploy/STATUS_REPORT.md)
 
+Launch-day sequence: [deploy/CUTOVER_RUNBOOK.md](/Users/tienhoang/Beauty%20Finder/deploy/CUTOVER_RUNBOOK.md)
+
+Rollback sequence: [deploy/ROLLBACK_RUNBOOK.md](/Users/tienhoang/Beauty%20Finder/deploy/ROLLBACK_RUNBOOK.md)
+
 ## Target Topology
 
 - API: `backend/api` on Render using [backend/api/Dockerfile](/Users/tienhoang/Beauty%20Finder/backend/api/Dockerfile)
@@ -40,9 +44,11 @@ Recommended setup:
 2. Create a second Render web service for `production`.
 3. Keep `autoDeploy` disabled until secrets, migrations, and smoke tests are in place.
 4. Set the health check to `/api/health`.
-5. Run `npm run db:migrate:deploy` as the pre-deploy or release migration step.
+5. Set `APP_ENV` and `OWNER_MEDIA_STORAGE_PATH_PREFIX` explicitly per service.
+6. Run `npm run db:migrate:deploy` as the pre-deploy or release migration step.
 
 The blueprint intentionally only defines the API service. Database, Redis, and Supabase Storage should be managed separately so staging and production stay isolated.
+It also leaves the environment-specific `APP_ENV` and media path prefix unset so production cannot accidentally inherit staging defaults from the blueprint.
 
 Provider-ready env templates live in [deploy/env](/Users/tienhoang/Beauty%20Finder/deploy/env).
 
@@ -176,13 +182,19 @@ Run this after every staging or production deploy:
 10. Customer web can load home, salon detail, and booking flow pages.
 11. Owner and admin logout clears the local session and forces a fresh sign-in.
 
-You can automate the basic checks with:
+You can automate the deploy checks with:
 
 ```bash
 npm run smoke:deploy
 ```
 
 Use [deploy/env/smoke.staging.env.example](/Users/tienhoang/Beauty%20Finder/deploy/env/smoke.staging.env.example) as the template for the required smoke-test environment variables.
+By default, the script covers API health, owner login, admin login, customer route reachability, and owner/admin logout enforcement.
+Any mutating verification is opt-in and requires `DEPLOY_SMOKE_ALLOW_SIDE_EFFECTS=true`.
+Mutating checks include `DEPLOY_SMOKE_ACCESS_ACCOUNT_ID`, `DEPLOY_SMOKE_OWNER_BUSINESS_ID`, `DEPLOY_SMOKE_ADMIN_HOMEPAGE_BUSINESS_ID`, `DEPLOY_SMOKE_ADMIN_STATUS_BUSINESS_ID`, and `DEPLOY_SMOKE_OWNER_MEDIA_UPLOAD=true`.
+Those checks should only target dedicated smoke data because they can create audit actions, storage objects, or owner-facing notifications.
+The seeded staging records from [prisma/seed.js](/Users/tienhoang/Beauty%20Finder/prisma/seed.js) remain available for manual or explicit smoke use: owner `lina@polishedstudio.app`, admin `admin@beautyfinder.app`, access account `user-owner-1`, and business `biz-1`.
+For local operator runs, copy the example file to `deploy/env/smoke.staging.local.env` or `deploy/env/smoke.production.local.env`, fill the real credentials, and run `npm run smoke:deploy:file -- <that-file>`.
 
 If you want the same verification in GitHub Actions after deploys, populate environment secrets from [deploy/env/github-smoke.secrets.example](/Users/tienhoang/Beauty%20Finder/deploy/env/github-smoke.secrets.example) and run [.github/workflows/beauty-finder-deploy-smoke.yml](/Users/tienhoang/Beauty%20Finder/.github/workflows/beauty-finder-deploy-smoke.yml).
 

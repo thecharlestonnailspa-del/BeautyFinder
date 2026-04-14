@@ -9,7 +9,7 @@ services:
     healthCheckPath: /api/health
     envVars:
       - key: APP_ENV
-        value: staging
+        sync: false
       - key: SEED_SAMPLE_DATA
         value: 'false'
       - key: HOST
@@ -31,7 +31,7 @@ services:
       - key: OWNER_MEDIA_STORAGE_BUCKET
         value: owner-media
       - key: OWNER_MEDIA_STORAGE_PATH_PREFIX
-        value: staging
+        sync: false
       - key: DATABASE_URL
         sync: false
       - key: REDIS_URL

@@ -51,6 +51,8 @@
     "test:backend:api-py": "PYTHONPATH=backend/api-py backend/api-py/.venv/bin/python -m unittest discover -s backend/api-py/tests",
     "typecheck": "turbo run typecheck",
     "smoke:deploy": "node scripts/smoke-deploy.mjs",
+    "smoke:deploy:file": "node scripts/run-release-smoke.mjs",
+    "check:release-env": "node scripts/check-release-env.mjs",
     "docker:up": "docker compose up --build",
     "docker:down": "docker compose down --remove-orphans",
     "docker:reset": "docker compose down -v --remove-orphans",

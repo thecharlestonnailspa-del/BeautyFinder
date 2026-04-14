@@ -4,6 +4,7 @@ This file is the operational command center for the current Beauty Finder releas
 
 Fast operator handoff:
 
+- [deploy/SECRETS_COPY_SHEET.md](/Users/tienhoang/Beauty%20Finder/deploy/SECRETS_COPY_SHEET.md)
 - [deploy/EXTERNAL_OPERATOR_SEQUENCE.md](/Users/tienhoang/Beauty%20Finder/deploy/EXTERNAL_OPERATOR_SEQUENCE.md)
 - [deploy/STAGING_OPERATOR_CHECKLIST.md](/Users/tienhoang/Beauty%20Finder/deploy/STAGING_OPERATOR_CHECKLIST.md)
 - [deploy/PRODUCTION_OPERATOR_CHECKLIST.md](/Users/tienhoang/Beauty%20Finder/deploy/PRODUCTION_OPERATOR_CHECKLIST.md)

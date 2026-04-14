@@ -6,6 +6,12 @@ Run workflow link:
 
 - https://github.com/thecharlestonnailspa-del/BeautyFinder/actions/workflows/beauty-finder-deploy-smoke.yml
 
+Staging note:
+
+- the GitHub workflow now auto-fills the committed staging defaults for URLs, emails, and `mock-password`
+- if your deployed staging still matches the seeded smoke data, you can rerun without adding staging secrets first
+- only add explicit staging secrets or variables if your staging values differ from the repo defaults
+
 ## GitHub `staging`
 
 Open:

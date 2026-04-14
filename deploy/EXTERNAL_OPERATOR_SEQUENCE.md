@@ -7,6 +7,7 @@ Use this file when you need the shortest possible outside-the-repo execution ord
 1. GitHub
    Open repository `Settings` -> `Environments` -> `staging` -> `Environment secrets`.
    Copy values from [deploy/env/github-smoke.secrets.example](/Users/tienhoang/Beauty%20Finder/deploy/env/github-smoke.secrets.example).
+   If your staging still uses the seeded smoke accounts, the workflow can now run even with no staging secrets because it auto-fills the repo defaults.
    Keep:
    - `DEPLOY_SMOKE_ALLOW_SIDE_EFFECTS=false`
    - `DEPLOY_SMOKE_OWNER_MEDIA_UPLOAD=false`

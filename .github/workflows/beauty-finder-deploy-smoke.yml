@@ -22,20 +22,20 @@ jobs:
     runs-on: ubuntu-latest
     environment: ${{ inputs.target }}
     env:
-      DEPLOY_SMOKE_API_URL: ${{ secrets.DEPLOY_SMOKE_API_URL }}
-      DEPLOY_SMOKE_OWNER_URL: ${{ secrets.DEPLOY_SMOKE_OWNER_URL }}
-      DEPLOY_SMOKE_ADMIN_URL: ${{ secrets.DEPLOY_SMOKE_ADMIN_URL }}
-      DEPLOY_SMOKE_CUSTOMER_URL: ${{ secrets.DEPLOY_SMOKE_CUSTOMER_URL }}
-      DEPLOY_SMOKE_OWNER_EMAIL: ${{ secrets.DEPLOY_SMOKE_OWNER_EMAIL }}
+      DEPLOY_SMOKE_API_URL: ${{ vars.DEPLOY_SMOKE_API_URL || secrets.DEPLOY_SMOKE_API_URL }}
+      DEPLOY_SMOKE_OWNER_URL: ${{ vars.DEPLOY_SMOKE_OWNER_URL || secrets.DEPLOY_SMOKE_OWNER_URL }}
+      DEPLOY_SMOKE_ADMIN_URL: ${{ vars.DEPLOY_SMOKE_ADMIN_URL || secrets.DEPLOY_SMOKE_ADMIN_URL }}
+      DEPLOY_SMOKE_CUSTOMER_URL: ${{ vars.DEPLOY_SMOKE_CUSTOMER_URL || secrets.DEPLOY_SMOKE_CUSTOMER_URL }}
+      DEPLOY_SMOKE_OWNER_EMAIL: ${{ vars.DEPLOY_SMOKE_OWNER_EMAIL || secrets.DEPLOY_SMOKE_OWNER_EMAIL }}
       DEPLOY_SMOKE_OWNER_PASSWORD: ${{ secrets.DEPLOY_SMOKE_OWNER_PASSWORD }}
-      DEPLOY_SMOKE_ADMIN_EMAIL: ${{ secrets.DEPLOY_SMOKE_ADMIN_EMAIL }}
+      DEPLOY_SMOKE_ADMIN_EMAIL: ${{ vars.DEPLOY_SMOKE_ADMIN_EMAIL || secrets.DEPLOY_SMOKE_ADMIN_EMAIL }}
       DEPLOY_SMOKE_ADMIN_PASSWORD: ${{ secrets.DEPLOY_SMOKE_ADMIN_PASSWORD }}
-      DEPLOY_SMOKE_ACCESS_ACCOUNT_ID: ${{ secrets.DEPLOY_SMOKE_ACCESS_ACCOUNT_ID }}
-      DEPLOY_SMOKE_OWNER_BUSINESS_ID: ${{ secrets.DEPLOY_SMOKE_OWNER_BUSINESS_ID }}
-      DEPLOY_SMOKE_ALLOW_SIDE_EFFECTS: ${{ secrets.DEPLOY_SMOKE_ALLOW_SIDE_EFFECTS }}
-      DEPLOY_SMOKE_OWNER_MEDIA_UPLOAD: ${{ secrets.DEPLOY_SMOKE_OWNER_MEDIA_UPLOAD }}
-      DEPLOY_SMOKE_ADMIN_HOMEPAGE_BUSINESS_ID: ${{ secrets.DEPLOY_SMOKE_ADMIN_HOMEPAGE_BUSINESS_ID }}
-      DEPLOY_SMOKE_ADMIN_STATUS_BUSINESS_ID: ${{ secrets.DEPLOY_SMOKE_ADMIN_STATUS_BUSINESS_ID }}
+      DEPLOY_SMOKE_ACCESS_ACCOUNT_ID: ${{ vars.DEPLOY_SMOKE_ACCESS_ACCOUNT_ID || secrets.DEPLOY_SMOKE_ACCESS_ACCOUNT_ID }}
+      DEPLOY_SMOKE_OWNER_BUSINESS_ID: ${{ vars.DEPLOY_SMOKE_OWNER_BUSINESS_ID || secrets.DEPLOY_SMOKE_OWNER_BUSINESS_ID }}
+      DEPLOY_SMOKE_ALLOW_SIDE_EFFECTS: ${{ vars.DEPLOY_SMOKE_ALLOW_SIDE_EFFECTS || secrets.DEPLOY_SMOKE_ALLOW_SIDE_EFFECTS }}
+      DEPLOY_SMOKE_OWNER_MEDIA_UPLOAD: ${{ vars.DEPLOY_SMOKE_OWNER_MEDIA_UPLOAD || secrets.DEPLOY_SMOKE_OWNER_MEDIA_UPLOAD }}
+      DEPLOY_SMOKE_ADMIN_HOMEPAGE_BUSINESS_ID: ${{ vars.DEPLOY_SMOKE_ADMIN_HOMEPAGE_BUSINESS_ID || secrets.DEPLOY_SMOKE_ADMIN_HOMEPAGE_BUSINESS_ID }}
+      DEPLOY_SMOKE_ADMIN_STATUS_BUSINESS_ID: ${{ vars.DEPLOY_SMOKE_ADMIN_STATUS_BUSINESS_ID || secrets.DEPLOY_SMOKE_ADMIN_STATUS_BUSINESS_ID }}
 
     steps:
       - name: Checkout
@@ -45,6 +45,64 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
+
+      - name: Resolve deploy smoke configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          write_env() {
+            local key="$1"
+            local value="$2"
+            printf '%s=%s\n' "$key" "$value" >> "$GITHUB_ENV"
+          }
+
+          if [ "${{ inputs.target }}" = "staging" ]; then
+            write_env DEPLOY_SMOKE_API_URL "${DEPLOY_SMOKE_API_URL:-https://beautyfinder-api-staging.onrender.com/api}"
+            write_env DEPLOY_SMOKE_OWNER_URL "${DEPLOY_SMOKE_OWNER_URL:-https://owner-dashboard-pi.vercel.app}"
+            write_env DEPLOY_SMOKE_ADMIN_URL "${DEPLOY_SMOKE_ADMIN_URL:-https://admin-panel-beta-olive.vercel.app}"
+            write_env DEPLOY_SMOKE_CUSTOMER_URL "${DEPLOY_SMOKE_CUSTOMER_URL:-https://mobile-app-bice-ten.vercel.app}"
+            write_env DEPLOY_SMOKE_OWNER_EMAIL "${DEPLOY_SMOKE_OWNER_EMAIL:-lina@polishedstudio.app}"
+            write_env DEPLOY_SMOKE_OWNER_PASSWORD "${DEPLOY_SMOKE_OWNER_PASSWORD:-mock-password}"
+            write_env DEPLOY_SMOKE_ADMIN_EMAIL "${DEPLOY_SMOKE_ADMIN_EMAIL:-admin@beautyfinder.app}"
+            write_env DEPLOY_SMOKE_ADMIN_PASSWORD "${DEPLOY_SMOKE_ADMIN_PASSWORD:-mock-password}"
+          fi
+
+          write_env DEPLOY_SMOKE_ALLOW_SIDE_EFFECTS "${DEPLOY_SMOKE_ALLOW_SIDE_EFFECTS:-false}"
+          write_env DEPLOY_SMOKE_OWNER_MEDIA_UPLOAD "${DEPLOY_SMOKE_OWNER_MEDIA_UPLOAD:-false}"
+
+      - name: Validate deploy smoke configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          missing=()
+
+          require_value() {
+            local key="$1"
+            if [ -z "${!key:-}" ]; then
+              missing+=("$key")
+            fi
+          }
+
+          require_value DEPLOY_SMOKE_API_URL
+
+          if [ -n "${DEPLOY_SMOKE_OWNER_URL:-}" ]; then
+            require_value DEPLOY_SMOKE_OWNER_EMAIL
+            require_value DEPLOY_SMOKE_OWNER_PASSWORD
+          fi
+
+          if [ -n "${DEPLOY_SMOKE_ADMIN_URL:-}" ]; then
+            require_value DEPLOY_SMOKE_ADMIN_EMAIL
+            require_value DEPLOY_SMOKE_ADMIN_PASSWORD
+          fi
+
+          if [ "${#missing[@]}" -gt 0 ]; then
+            echo "Missing deploy smoke configuration for target '${{ inputs.target }}':"
+            printf ' - %s\n' "${missing[@]}"
+            echo "See deploy/SECRETS_COPY_SHEET.md and deploy/EXTERNAL_OPERATOR_SEQUENCE.md."
+            exit 1
+          fi
 
       - name: Run deploy smoke checks
         run: node scripts/smoke-deploy.mjs

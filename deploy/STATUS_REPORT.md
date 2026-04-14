@@ -19,9 +19,9 @@ This file summarizes the current order of work and the estimated completion leve
 7. Add manual deploy-smoke workflow for staging and production verification.
    - Status: complete
 8. Provision provider resources and enter real secrets in Render and Vercel.
-   - Status: pending
+   - Status: in progress
 9. Deploy staging and run smoke checks plus manual QA.
-   - Status: pending
+   - Status: complete
 10. Deploy production and perform cutover.
     - Status: pending
 
@@ -38,12 +38,12 @@ Reason:
 
 ### End-to-end launch program
 
-- Status: `70% complete`
+- Status: `80% complete`
 
 Calculation:
 
-- Completed major launch milestones: `7 / 10`
-- Remaining major launch milestones: `3 / 10`
+- Completed major launch milestones: `8 / 10`
+- Remaining major launch milestones: `2 / 10`
 
 ## What Is Already Done
 
@@ -55,16 +55,24 @@ Calculation:
 - Deployment smoke script exists in [scripts/smoke-deploy.mjs](/Users/tienhoang/Beauty%20Finder/scripts/smoke-deploy.mjs).
 - GitHub Actions CI workflow exists in [.github/workflows/beauty-finder-ci.yml](/Users/tienhoang/Beauty%20Finder/.github/workflows/beauty-finder-ci.yml).
 - GitHub Actions deploy smoke workflow exists in [.github/workflows/beauty-finder-deploy-smoke.yml](/Users/tienhoang/Beauty%20Finder/.github/workflows/beauty-finder-deploy-smoke.yml).
+- Render staging API is live at `https://beautyfinder-api-staging.onrender.com`.
+- Owner staging is live at `https://owner-dashboard-pi.vercel.app`.
+- Admin staging is live at `https://admin-panel-beta-olive.vercel.app`.
+- Customer web staging is live at `https://mobile-app-bice-ten.vercel.app`.
+- `npm run smoke:deploy` passed against the live staging URLs.
+- Manual staging QA passed for owner login, owner business save, owner image upload, owner technician roster save, admin login, admin access-session bootstrap, admin moderation write path, customer login, and customer favorites add/remove with restore.
 
 ## What Still Blocks Launch
 
-- Real staging and production infrastructure is not provisioned yet.
-- Real secrets and public domains are not connected yet.
-- No staging smoke run has been executed against deployed URLs yet.
+- Dedicated staging Redis is not provisioned yet.
+- Staging custom HTTPS domains are not connected yet.
+- GitHub environment `staging` is not populated with deploy-smoke secrets yet.
+- `Beauty Finder Deploy Smoke` has not been executed through GitHub Actions against staging yet.
+- If strict environment isolation is required, staging still needs its own dedicated database and storage target instead of the temporary shared Supabase project used for testing.
 - No production cutover has been performed yet.
 
 ## Launch Recommendation
 
-- Proceed to staging first.
-- Do not attempt production cutover before staging smoke checks and manual QA pass.
+- Staging is now usable for product QA and stakeholder review.
+- Do not attempt production cutover before staging custom domains, Redis, and GitHub-hosted smoke checks are in place.
 - Keep `backend/worker` and `backend/api-py` out of the first public launch path.

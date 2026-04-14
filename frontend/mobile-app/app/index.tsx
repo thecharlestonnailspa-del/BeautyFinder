@@ -34,7 +34,7 @@ import {
 } from '../src/lib/customer-experience';
 import { BeautyMotion } from '../src/components/beauty-motion';
 import {
-  BeautyFinderWordmark,
+  BeautyFinderNavbarBrand,
   BusinessLogoPanel,
 } from '../src/components/business-logo-panel';
 
@@ -697,10 +697,25 @@ export default function HomeScreen() {
           <View style={styles.heroBackdropGrid} />
 
           <View style={styles.heroInner}>
-            <View style={styles.topBar}>
-              <View style={styles.brandRow}>
-                <BeautyFinderWordmark tone="dark" compact={!isTablet} />
-              </View>
+            <View
+              style={[
+                styles.topBar,
+                isDesktop ? styles.topBarDesktop : styles.topBarMobile,
+              ]}
+            >
+              <Link href="/" asChild>
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.brandRow,
+                    pressed ? styles.brandRowPressed : null,
+                  ]}
+                >
+                  <BeautyFinderNavbarBrand
+                    tone="dark"
+                    compact={!isDesktop}
+                  />
+                </Pressable>
+              </Link>
 
               {isDesktop ? (
                 <View style={styles.topNavRow}>
@@ -710,11 +725,11 @@ export default function HomeScreen() {
                 </View>
               ) : null}
 
-              <View style={styles.authRow}>
+              <View style={[styles.authRow, !isTablet ? styles.authRowMobile : null]}>
                 {activeSession ? (
                   <>
                     <View style={styles.sessionBadge}>
-                      <Text style={styles.sessionBadgeText}>
+                      <Text numberOfLines={1} style={styles.sessionBadgeText}>
                         {activeSession.user.name}
                       </Text>
                     </View>
@@ -780,15 +795,6 @@ export default function HomeScreen() {
                   style={styles.searchInput}
                 />
               </View>
-
-              <View
-                style={[
-                  styles.searchDivider,
-                  isDesktop
-                    ? styles.searchDividerDesktop
-                    : styles.searchDividerMobile,
-                ]}
-              />
 
               <View style={styles.searchInputWrap}>
                 <Text style={styles.searchLabel}>Near</Text>
@@ -868,7 +874,7 @@ export default function HomeScreen() {
                     <Text style={styles.heroWelcomeBody}>
                       {loading
                         ? 'We are lining up today’s featured salons and nearby beauty highlights.'
-                        : 'Search and booking stay live, while the storefront now leads with sharper logo-driven branding.'}
+                        : 'Search, discovery, and booking stay live while today’s featured salons refresh in real time.'}
                     </Text>
                   </View>
                 </View>
@@ -1222,15 +1228,40 @@ const styles = StyleSheet.create({
     gap: 20,
   },
   topBar: {
+    minHeight: 64,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 12,
+    gap: 14,
     flexWrap: 'wrap',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: 'rgba(9,11,14,0.78)',
+    shadowColor: '#000000',
+    shadowOpacity: 0.18,
+    shadowRadius: 24,
+    shadowOffset: { width: 0, height: 12 },
+  },
+  topBarDesktop: {
+    flexWrap: 'nowrap',
+    paddingHorizontal: 14,
+  },
+  topBarMobile: {
+    rowGap: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 9,
   },
   brandRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    minHeight: 44,
+    flexShrink: 0,
+  },
+  brandRowPressed: {
+    opacity: 0.88,
   },
   brandLogo: {
     width: 220,
@@ -1243,157 +1274,174 @@ const styles = StyleSheet.create({
   topNavRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    flexWrap: 'wrap',
+    justifyContent: 'center',
+    flex: 1,
+    gap: 8,
+    paddingHorizontal: 12,
   },
   topNavButton: {
     borderRadius: 999,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: 'rgba(255,255,255,0.03)',
   },
   topNavButtonPressed: {
-    backgroundColor: 'rgba(255,255,255,0.16)',
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderColor: 'rgba(255,255,255,0.14)',
   },
   topNavButtonText: {
-    color: '#f2f2f2',
-    fontSize: 14,
+    color: 'rgba(248,244,238,0.82)',
+    fontSize: 13,
     fontWeight: '700',
+    letterSpacing: 0.2,
   },
   authRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 8,
+    marginLeft: 'auto',
+    flexShrink: 0,
+  },
+  authRowMobile: {
+    gap: 6,
   },
   sessionBadge: {
     borderRadius: 999,
-    paddingHorizontal: 16,
-    paddingVertical: 11,
-    backgroundColor: 'rgba(255,255,255,0.14)',
+    maxWidth: 168,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    backgroundColor: 'rgba(255,255,255,0.08)',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.18)',
+    borderColor: 'rgba(255,255,255,0.12)',
   },
   sessionBadgeText: {
-    color: '#ffffff',
-    fontSize: 14,
+    color: '#f8f4ee',
+    fontSize: 13,
     fontWeight: '700',
   },
   ghostButton: {
     borderRadius: 999,
-    paddingHorizontal: 18,
-    paddingVertical: 11,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.55)',
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderColor: 'rgba(255,255,255,0.18)',
+    backgroundColor: 'rgba(255,255,255,0.03)',
   },
   ghostButtonPressed: {
-    backgroundColor: 'rgba(255,255,255,0.14)',
+    backgroundColor: 'rgba(255,255,255,0.1)',
   },
   ghostButtonText: {
-    color: '#ffffff',
-    fontSize: 14,
+    color: '#f6ede4',
+    fontSize: 13,
     fontWeight: '700',
   },
   primaryChromeButton: {
     borderRadius: 999,
-    paddingHorizontal: 20,
-    paddingVertical: 11,
-    backgroundColor: '#e12727',
+    paddingHorizontal: 17,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: '#f4e8dc',
   },
   primaryChromeButtonPressed: {
-    backgroundColor: '#bf1e1e',
+    backgroundColor: '#eadbcd',
   },
   primaryChromeButtonText: {
-    color: '#ffffff',
-    fontSize: 14,
+    color: '#241913',
+    fontSize: 13,
     fontWeight: '800',
+    letterSpacing: 0.2,
   },
   searchBar: {
-    borderRadius: 28,
-    backgroundColor: '#ffffff',
-    padding: 10,
+    borderRadius: 30,
+    borderWidth: 1,
+    borderColor: 'rgba(243,233,222,0.14)',
+    backgroundColor: 'rgba(246,239,231,0.96)',
+    padding: 8,
     alignItems: 'stretch',
-    gap: 10,
+    gap: 8,
+    shadowColor: '#000000',
+    shadowOpacity: 0.18,
+    shadowRadius: 24,
+    shadowOffset: { width: 0, height: 14 },
   },
   searchBarDesktop: {
     flexDirection: 'row',
+    alignItems: 'stretch',
   },
   searchBarMobile: {
     flexDirection: 'column',
   },
   searchInputWrap: {
     flex: 1,
-    gap: 4,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    gap: 5,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255,255,255,0.72)',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
   },
   searchLabel: {
-    color: '#6a6a6a',
-    fontSize: 12,
+    color: '#77685f',
+    fontSize: 11,
     fontWeight: '700',
     textTransform: 'uppercase',
-    letterSpacing: 0.8,
+    letterSpacing: 1.1,
   },
   searchInput: {
-    color: '#202020',
-    fontSize: 17,
+    color: '#211915',
+    fontSize: 16,
     fontWeight: '600',
-    paddingVertical: 4,
-  },
-  searchDivider: {
-    backgroundColor: '#ebebeb',
-  },
-  searchDividerDesktop: {
-    width: 1,
-    marginVertical: 10,
-  },
-  searchDividerMobile: {
-    height: 1,
-    marginHorizontal: 10,
+    paddingVertical: 2,
   },
   searchButton: {
-    minWidth: 118,
-    borderRadius: 20,
-    backgroundColor: '#e12727',
+    minWidth: 132,
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: 'rgba(15,17,19,0.08)',
+    backgroundColor: '#171417',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 18,
+    paddingHorizontal: 20,
     paddingVertical: 16,
   },
   searchButtonPressed: {
-    backgroundColor: '#bf1e1e',
+    backgroundColor: '#2a2527',
   },
   searchButtonText: {
-    color: '#ffffff',
-    fontSize: 17,
+    color: '#f6eee5',
+    fontSize: 15,
     fontWeight: '800',
+    letterSpacing: 0.2,
   },
   heroShortcutRow: {
-    gap: 10,
+    gap: 8,
     paddingRight: 24,
   },
   heroShortcut: {
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.22)',
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    borderColor: 'rgba(255,255,255,0.12)',
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    paddingHorizontal: 15,
+    paddingVertical: 9,
   },
   heroShortcutActive: {
-    backgroundColor: '#ffffff',
-    borderColor: '#ffffff',
+    backgroundColor: '#f4e8dc',
+    borderColor: '#f4e8dc',
   },
   heroShortcutPressed: {
     opacity: 0.9,
   },
   heroShortcutText: {
-    color: '#ffffff',
-    fontSize: 15,
+    color: 'rgba(248,244,238,0.9)',
+    fontSize: 14,
     fontWeight: '700',
+    letterSpacing: 0.15,
   },
   heroShortcutTextActive: {
-    color: '#141414',
+    color: '#221a16',
   },
   heroContent: {
     flex: 1,
@@ -1444,12 +1492,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   heroWelcomeBanner: {
-    borderRadius: 28,
+    borderRadius: 30,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.18)',
-    backgroundColor: 'rgba(7,7,7,0.26)',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    borderColor: 'rgba(244,232,220,0.14)',
+    backgroundColor: 'rgba(12, 14, 18, 0.56)',
+    paddingHorizontal: 18,
+    paddingVertical: 16,
     gap: 14,
     alignItems: 'center',
   },
@@ -1467,32 +1515,32 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
   },
   heroWelcomeEyebrow: {
-    color: '#f7d288',
-    fontSize: 12,
+    color: '#d9b994',
+    fontSize: 11,
     fontWeight: '800',
-    letterSpacing: 1,
+    letterSpacing: 1.15,
     textTransform: 'uppercase',
   },
   heroWelcomeTitle: {
-    color: '#ffffff',
-    fontSize: 24,
+    color: '#f8f1ea',
+    fontSize: 23,
     lineHeight: 27,
     fontWeight: '800',
   },
   heroWelcomeBody: {
-    color: 'rgba(255,255,255,0.86)',
+    color: 'rgba(246,239,231,0.78)',
     fontSize: 14,
     lineHeight: 21,
   },
   heroEyebrow: {
-    color: '#f4f4f4',
-    fontSize: 14,
+    color: '#d6c2b1',
+    fontSize: 12,
     fontWeight: '700',
-    letterSpacing: 1,
+    letterSpacing: 1.2,
     textTransform: 'uppercase',
   },
   heroHeadline: {
-    color: '#ffffff',
+    color: '#fbf5ef',
     fontSize: 56,
     lineHeight: 58,
     fontWeight: '800',
@@ -1507,56 +1555,59 @@ const styles = StyleSheet.create({
     lineHeight: 38,
   },
   heroDescription: {
-    color: 'rgba(255,255,255,0.9)',
-    fontSize: 18,
-    lineHeight: 28,
+    color: 'rgba(246,239,231,0.82)',
+    fontSize: 17,
+    lineHeight: 27,
     maxWidth: 620,
   },
   heroActionRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 10,
     flexWrap: 'wrap',
   },
   heroPrimaryAction: {
     borderRadius: 999,
-    backgroundColor: '#e12727',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: '#f4e8dc',
     paddingHorizontal: 22,
-    paddingVertical: 14,
+    paddingVertical: 13,
   },
   heroPrimaryActionPressed: {
-    backgroundColor: '#bf1e1e',
+    backgroundColor: '#eadbcd',
   },
   heroPrimaryActionText: {
-    color: '#ffffff',
-    fontSize: 16,
+    color: '#241913',
+    fontSize: 15,
     fontWeight: '800',
+    letterSpacing: 0.2,
   },
   heroSecondaryAction: {
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.55)',
+    borderColor: 'rgba(255,255,255,0.18)',
     paddingHorizontal: 22,
-    paddingVertical: 14,
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    paddingVertical: 13,
+    backgroundColor: 'rgba(255,255,255,0.04)',
   },
   heroSecondaryActionPressed: {
-    backgroundColor: 'rgba(255,255,255,0.16)',
+    backgroundColor: 'rgba(255,255,255,0.1)',
   },
   heroSecondaryActionText: {
-    color: '#ffffff',
-    fontSize: 16,
+    color: '#f6ede4',
+    fontSize: 15,
     fontWeight: '700',
   },
   heroInfoCard: {
     width: '100%',
     maxWidth: 360,
     alignSelf: 'stretch',
-    borderRadius: 28,
+    borderRadius: 30,
     padding: 20,
-    backgroundColor: 'rgba(16,16,16,0.58)',
+    backgroundColor: 'rgba(12, 14, 18, 0.64)',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.16)',
+    borderColor: 'rgba(244,232,220,0.14)',
     gap: 10,
   },
   heroInfoEyebrow: {

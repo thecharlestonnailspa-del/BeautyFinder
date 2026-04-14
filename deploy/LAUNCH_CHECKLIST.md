@@ -16,19 +16,19 @@ Use this checklist for the first real staging rollout and the later production c
 
 ## Fill In First
 
-- Staging API domain: `________________`
-- Staging owner domain: `________________`
-- Staging admin domain: `________________`
-- Staging customer web domain: `________________`
+- Staging API domain: `https://beautyfinder-api-staging.onrender.com`
+- Staging owner domain: `https://owner-dashboard-pi.vercel.app`
+- Staging admin domain: `https://admin-panel-beta-olive.vercel.app`
+- Staging customer web domain: `https://mobile-app-bice-ten.vercel.app`
 - Production API domain: `________________`
 - Production owner domain: `________________`
 - Production admin domain: `________________`
 - Production customer web domain: `________________`
-- Render staging service name: `________________`
+- Render staging service name: `beautyfinder-api-staging`
 - Render production service name: `________________`
-- Vercel owner project name: `________________`
-- Vercel admin project name: `________________`
-- Vercel customer web project name: `________________`
+- Vercel owner project name: `owner-dashboard`
+- Vercel admin project name: `admin-panel`
+- Vercel customer web project name: `mobile-app`
 
 ## Repo Prep
 
@@ -46,31 +46,36 @@ Use this checklist for the first real staging rollout and the later production c
 
 - [ ] Create managed staging Postgres.
 - [ ] Create managed staging Redis.
-- [ ] Create staging Supabase storage bucket or equivalent storage target.
-- [ ] Create Render staging API service from [render.yaml](/Users/tienhoang/Beauty%20Finder/render.yaml).
-- [ ] Copy secrets from [render-api.staging.env.example](/Users/tienhoang/Beauty%20Finder/deploy/env/render-api.staging.env.example).
-- [ ] Set real `CORS_ORIGINS` for staging owner/admin/customer web domains.
-- [ ] Run `npm run db:migrate:deploy` against staging.
-- [ ] Create Vercel owner staging project.
-- [ ] Copy secrets from [vercel-owner.staging.env.example](/Users/tienhoang/Beauty%20Finder/deploy/env/vercel-owner.staging.env.example).
-- [ ] Create Vercel admin staging project.
-- [ ] Copy secrets from [vercel-admin.staging.env.example](/Users/tienhoang/Beauty%20Finder/deploy/env/vercel-admin.staging.env.example).
-- [ ] Create Vercel customer web staging project.
-- [ ] Copy secrets from [vercel-customer-web.staging.env.example](/Users/tienhoang/Beauty%20Finder/deploy/env/vercel-customer-web.staging.env.example).
+- [x] Create staging Supabase storage bucket or equivalent storage target.
+- [x] Create Render staging API service from [render.yaml](/Users/tienhoang/Beauty%20Finder/render.yaml).
+- [x] Copy secrets from [render-api.staging.env.example](/Users/tienhoang/Beauty%20Finder/deploy/env/render-api.staging.env.example).
+- [x] Set real `CORS_ORIGINS` for staging owner/admin/customer web domains.
+- [x] Run `npm run db:migrate:deploy` against staging.
+- [x] Create Vercel owner staging project.
+- [x] Copy secrets from [vercel-owner.staging.env.example](/Users/tienhoang/Beauty%20Finder/deploy/env/vercel-owner.staging.env.example).
+- [x] Create Vercel admin staging project.
+- [x] Copy secrets from [vercel-admin.staging.env.example](/Users/tienhoang/Beauty%20Finder/deploy/env/vercel-admin.staging.env.example).
+- [x] Create Vercel customer web staging project.
+- [x] Copy secrets from [vercel-customer-web.staging.env.example](/Users/tienhoang/Beauty%20Finder/deploy/env/vercel-customer-web.staging.env.example).
 - [ ] Bind staging custom domains over HTTPS.
+
+Current temporary staging note:
+
+- Staging validation is currently using the shared Supabase project and bucket for testing.
+- `REDIS_URL` is still unset, so Redis-dependent behavior is not part of the current staging sign-off.
 
 ## Staging Verification
 
-- [ ] `GET /api/health` returns `200`.
-- [ ] Owner login works in staging.
-- [ ] Admin login works in staging.
-- [ ] Owner business edit saves correctly.
-- [ ] Owner image upload succeeds and points to object storage.
-- [ ] Owner technician roster save works.
-- [ ] Admin business moderation works.
-- [ ] Admin account access session works.
-- [ ] Customer web app loads main routes.
-- [ ] `npm run smoke:deploy` passes with staging values from [smoke.staging.env.example](/Users/tienhoang/Beauty%20Finder/deploy/env/smoke.staging.env.example).
+- [x] `GET /api/health` returns `200`.
+- [x] Owner login works in staging.
+- [x] Admin login works in staging.
+- [x] Owner business edit saves correctly.
+- [x] Owner image upload succeeds and points to object storage.
+- [x] Owner technician roster save works.
+- [x] Admin business moderation works.
+- [x] Admin account access session works.
+- [x] Customer web app loads main routes.
+- [x] `npm run smoke:deploy` passes with staging values from [smoke.staging.env.example](/Users/tienhoang/Beauty%20Finder/deploy/env/smoke.staging.env.example).
 - [ ] GitHub environment `staging` is populated with smoke-test secrets from [github-smoke.secrets.example](/Users/tienhoang/Beauty%20Finder/deploy/env/github-smoke.secrets.example).
 - [ ] `Beauty Finder Deploy Smoke` workflow passes for `staging`.
 

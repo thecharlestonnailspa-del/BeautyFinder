@@ -11,6 +11,12 @@ type BeautyFinderWordmarkProps = {
   tone?: BrandTone;
 };
 
+type BeautyFinderNavbarBrandProps = {
+  compact?: boolean;
+  style?: StyleProp<ViewStyle>;
+  tone?: BrandTone;
+};
+
 type BusinessLogoPanelProps = {
   business: BusinessSummary;
   size?: BrandSize;
@@ -196,6 +202,86 @@ export function BeautyFinderWordmark({
           Curated salon booking
         </Text>
       </View>
+    </View>
+  );
+}
+
+export function BeautyFinderNavbarBrand({
+  compact = false,
+  style,
+  tone = 'dark',
+}: BeautyFinderNavbarBrandProps) {
+  const darkTone = tone === 'dark';
+
+  return (
+    <View
+      style={[
+        styles.navbarBrandRow,
+        compact ? styles.navbarBrandRowCompact : null,
+        style,
+      ]}
+    >
+      <View
+        style={[
+          styles.navbarBrandMarkShell,
+          compact ? styles.navbarBrandMarkShellCompact : null,
+          darkTone
+            ? styles.navbarBrandMarkShellDark
+            : styles.navbarBrandMarkShellLight,
+        ]}
+      >
+        <View
+          style={[
+            styles.navbarBrandMarkCore,
+            compact ? styles.navbarBrandMarkCoreCompact : null,
+            darkTone
+              ? styles.navbarBrandMarkCoreDark
+              : styles.navbarBrandMarkCoreLight,
+          ]}
+        >
+          <Text
+            style={[
+              styles.navbarBrandMarkText,
+              compact ? styles.navbarBrandMarkTextCompact : null,
+              darkTone
+                ? styles.navbarBrandMarkTextDark
+                : styles.navbarBrandMarkTextLight,
+            ]}
+          >
+            Bf
+          </Text>
+        </View>
+      </View>
+
+      {compact ? null : (
+        <View
+          style={[
+            styles.navbarBrandMeta,
+            darkTone ? styles.navbarBrandMetaDark : styles.navbarBrandMetaLight,
+          ]}
+        >
+          <Text
+            style={[
+              styles.navbarBrandEyebrow,
+              darkTone
+                ? styles.navbarBrandEyebrowDark
+                : styles.navbarBrandEyebrowLight,
+            ]}
+          >
+            Beauty marketplace
+          </Text>
+          <Text
+            style={[
+              styles.navbarBrandCaption,
+              darkTone
+                ? styles.navbarBrandCaptionDark
+                : styles.navbarBrandCaptionLight,
+            ]}
+          >
+            Curated booking
+          </Text>
+        </View>
+      )}
     </View>
   );
 }
@@ -395,6 +481,100 @@ const styles = StyleSheet.create({
   },
   wordmarkSubtitleLight: {
     color: '#6f6b64',
+  },
+  navbarBrandRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+  },
+  navbarBrandRowCompact: {
+    gap: 0,
+  },
+  navbarBrandMarkShell: {
+    borderRadius: 18,
+    padding: 3,
+    borderWidth: 1,
+  },
+  navbarBrandMarkShellCompact: {
+    borderRadius: 16,
+  },
+  navbarBrandMarkShellDark: {
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  navbarBrandMarkShellLight: {
+    backgroundColor: 'rgba(20,22,25,0.05)',
+    borderColor: 'rgba(20,22,25,0.08)',
+  },
+  navbarBrandMarkCore: {
+    width: 44,
+    height: 44,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  navbarBrandMarkCoreCompact: {
+    width: 40,
+    height: 40,
+    borderRadius: 14,
+  },
+  navbarBrandMarkCoreDark: {
+    backgroundColor: '#f4e8dc',
+  },
+  navbarBrandMarkCoreLight: {
+    backgroundColor: '#171717',
+  },
+  navbarBrandMarkText: {
+    fontSize: 20,
+    lineHeight: 20,
+    fontWeight: '900',
+    letterSpacing: 0.3,
+  },
+  navbarBrandMarkTextCompact: {
+    fontSize: 18,
+    lineHeight: 18,
+  },
+  navbarBrandMarkTextDark: {
+    color: '#241a16',
+  },
+  navbarBrandMarkTextLight: {
+    color: '#fbf7f1',
+  },
+  navbarBrandMeta: {
+    paddingLeft: 14,
+    gap: 2,
+    borderLeftWidth: 1,
+  },
+  navbarBrandMetaDark: {
+    borderLeftColor: 'rgba(255,255,255,0.1)',
+  },
+  navbarBrandMetaLight: {
+    borderLeftColor: 'rgba(20,22,25,0.08)',
+  },
+  navbarBrandEyebrow: {
+    fontSize: 10,
+    lineHeight: 12,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 1.2,
+  },
+  navbarBrandEyebrowDark: {
+    color: 'rgba(255,255,255,0.55)',
+  },
+  navbarBrandEyebrowLight: {
+    color: '#6e645d',
+  },
+  navbarBrandCaption: {
+    fontSize: 13,
+    lineHeight: 16,
+    fontWeight: '700',
+    letterSpacing: 0.1,
+  },
+  navbarBrandCaptionDark: {
+    color: '#f6efe7',
+  },
+  navbarBrandCaptionLight: {
+    color: '#171717',
   },
   panel: {
     borderRadius: 30,
